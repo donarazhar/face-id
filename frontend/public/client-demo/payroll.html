@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Penggajian & HR</title>
+    <!-- Load face-api.js dari CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: #e8f5e9; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); width: 100%; max-width: 600px; }
+        
+        h1 { font-size: 1.8rem; margin-bottom: 5px; color: #27ae60; }
+        h2 { color: #2ecc71; margin-bottom: 20px; }
+        
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 10px; }
+        .btn-primary { background: #27ae60; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-danger { background: #e74c3c; color: white; }
+
+        .camera-box { position: relative; width: 100%; aspect-ratio: 4/3; background: #e2e8f0; border-radius: 12px; overflow: hidden; margin-top: 20px; border: 3px solid #2ecc71; display: none; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 50px; background: #f1c40f; color: #fff; font-size: 0.85rem; margin-bottom: 20px; }
+        .status-badge.ready { background: #2ecc71; }
+        
+        .profile-card { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef;}
+        .profile-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #2ecc71;}
+        
+        .hidden { display: none; }
+        .text-center { text-align: center; }
+
+        .slip-gaji { border: 1px dashed #2ecc71; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .amount { font-size: 2rem; font-family: monospace; color: #27ae60; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <!-- HALAMAN LOGIN PAYROLL -->
+    <div class="container text-center" id="loginAdminPage">
+        <div style="font-size: 4rem; margin-bottom: 10px;">💸</div>
+        <h1>Aplikasi Penggajian</h1>
+        <p style="color: #7f8c8d; margin-bottom: 30px; font-size: 0.9rem;">Informasi Slip Gaji sangat rahasia. Wajib verifikasi Face-ID.</p>
+
+        <button class="btn btn-primary" onclick="startScanner()">
+            📷 Buka Slip Gaji via Face-ID
+        </button>
+        
+        <div id="loginAdminStatus" class="status-badge hidden" style="margin-top:15px;">Menyiapkan Kamera...</div>
+        
+        <div class="camera-box" id="cameraBoxLogin">
+            <video id="videoLogin" autoplay muted playsinline></video>
+            <canvas id="canvasLogin"></canvas>
+        </div>
+    </div>
+
+    <!-- DASHBOARD PAYROLL -->
+    <div class="container hidden" id="dashboardAdminPage">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">Informasi Gaji Anda</h2>
+            <button class="btn btn-danger" style="width: auto; padding: 8px 15px;" onclick="location.reload()">Logout</button>
+        </div>
+
+        <div class="profile-card">
+            <img id="adminPhoto" src="" alt="Profile">
+            <div>
+                <h3 id="adminName" style="color: #2c3e50; font-size: 1.2rem;">Nama</h3>
+                <p style="color: #2ecc71; font-size: 0.85rem; font-weight: bold;">Karyawan YPI Al Azhar</p>
+                <p id="adminNip" style="color: #7f8c8d; font-size: 0.8rem;">NIP</p>
+            </div>
+        </div>
+
+        <div class="slip-gaji text-center">
+            <p style="color: #7f8c8d; font-size: 0.9rem; text-transform: uppercase;">Total Take Home Pay (Bulan Ini)</p>
+            <div class="amount">Rp 12.500.000,-</div>
+            <button class="btn btn-primary" style="background: #2c3e50;">Unduh PDF Rincian</button>
+        </div>
+    </div>
+
+    <script>
+        const SSO_API_URL = 'http://localhost:8000/api/v1/auth/verify-face';
+        const APP_ID = 'APP-PAYROLL-002'; // ID KHUSUS APLIKASI PENGGAJIAN
+        
+        let isProcessing = false;
+        let activeVideo = document.getElementById('videoLogin');
+        let activeCanvas = document.getElementById('canvasLogin');
+        let statusEl = document.getElementById('loginAdminStatus');
+        let scanInterval = null;
+
+        // --- MODEL AI ---
+        let modelsLoaded = false;
+        async function initModels() {
+            if (modelsLoaded) return true;
+            try {
+                await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                modelsLoaded = true;
+                return true;
+            } catch (err) {
+                alert("Gagal memuat AI. Pastikan server Vite Face-ID berjalan.");
+                return false;
+            }
+        }
+
+        // --- SCANNER KAMERA ---
+        async function startScanner() {
+            statusEl.classList.remove('hidden');
+            statusEl.innerText = "Memuat AI...";
+            statusEl.className = 'status-badge ready';
+
+            const ready = await initModels();
+            if (!ready) return;
+
+            statusEl.innerText = "Membuka Kamera...";
+            document.getElementById('cameraBoxLogin').style.display = 'block';
+
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            activeVideo.srcObject = stream;
+
+            activeVideo.addEventListener('play', () => {
+                statusEl.innerText = "Mencari Wajah...";
+                activeCanvas.width = activeVideo.videoWidth;
+                activeCanvas.height = activeVideo.videoHeight;
+                const displaySize = { width: activeVideo.videoWidth, height: activeVideo.videoHeight };
+                faceapi.matchDimensions(activeCanvas, displaySize);
+
+                if (scanInterval) clearInterval(scanInterval);
+
+                scanInterval = setInterval(async () => {
+                    if (isProcessing || activeVideo.paused) return;
+
+                    const detection = await faceapi.detectSingleFace(activeVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                        .withFaceLandmarks()
+                        .withFaceDescriptor();
+
+                    const ctx = activeCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
+
+                    if (detection) {
+                        faceapi.draw.drawDetections(activeCanvas, faceapi.resizeResults(detection, displaySize));
+                        
+                        if (detection.detection.score > 0.7 && !isProcessing) {
+                            isProcessing = true;
+                            statusEl.innerText = 'Memverifikasi ke Server SSO...';
+                            
+                            await processSSO(Array.from(detection.descriptor));
+                        }
+                    }
+                }, 500);
+            });
+        }
+
+        async function processSSO(descriptorArray) {
+            try {
+                const response = await fetch(SSO_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ app_id: APP_ID, face_descriptor: descriptorArray })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const employee = data.data;
+                    stopCamera();
+                    
+                    document.getElementById('loginAdminPage').classList.add('hidden');
+                    document.getElementById('dashboardAdminPage').classList.remove('hidden');
+                    
+                    document.getElementById('adminPhoto').src = employee.photo_thumbnail || 'https://via.placeholder.com/60';
+                    document.getElementById('adminName').innerText = employee.name;
+                    document.getElementById('adminNip').innerText = `NIP: ${employee.employee_id}`;
+                } else {
+                    statusEl.innerText = data.message || 'Wajah tidak terdaftar di database HR Al Azhar.';
+                    statusEl.className = 'status-badge error';
+                    setTimeout(() => { isProcessing = false; }, 3000);
+                }
+            } catch (err) {
+                statusEl.innerText = 'Gagal terhubung ke Server SSO.';
+                statusEl.className = 'status-badge error';
+                setTimeout(() => { isProcessing = false; }, 3000);
+            }
+        }
+
+        function stopCamera() {
+            if (scanInterval) clearInterval(scanInterval);
+            if (activeVideo && activeVideo.srcObject) {
+                activeVideo.pause();
+                activeVideo.srcObject.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('cameraBoxLogin').style.display = 'none';
+            isProcessing = false;
+        }
+    </script>
+</body>
+</html>

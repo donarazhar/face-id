@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Berita Internal</title>
+    <!-- Load face-api.js dari CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: #f0f4f8; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); width: 100%; max-width: 600px; }
+        
+        h1 { font-size: 1.8rem; margin-bottom: 5px; color: #2c3e50; }
+        h2 { color: #3498db; margin-bottom: 20px; }
+        
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 10px; }
+        .btn-primary { background: #2c3e50; color: white; }
+        .btn-outline { background: transparent; border: 2px solid #2c3e50; color: #2c3e50; }
+        .btn-sso { background: #3498db; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-danger { background: #e74c3c; color: white; }
+
+        .camera-box { position: relative; width: 100%; aspect-ratio: 4/3; background: #e2e8f0; border-radius: 12px; overflow: hidden; margin-top: 20px; border: 3px solid #3498db; display: none; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 50px; background: #f1c40f; color: #fff; font-size: 0.85rem; margin-bottom: 20px; }
+        
+        .admin-list { list-style: none; margin: 20px 0; border: 1px solid #eee; border-radius: 8px; padding: 10px; }
+        .admin-item { display: flex; align-items: center; gap: 15px; padding: 10px; border-bottom: 1px solid #eee; }
+        .admin-item img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        
+        .profile-card { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef;}
+        .profile-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #3498db;}
+        
+        .hidden { display: none; }
+        .text-center { text-align: center; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. HALAMAN PILIH JALUR LOGIN -->
+    <div class="container text-center" id="selectionPage">
+        <div style="font-size: 4rem; margin-bottom: 10px;">📰</div>
+        <h1>Portal Berita Internal</h1>
+        <p style="color: #7f8c8d; margin-bottom: 30px;">Silakan pilih jalur akses Anda.</p>
+
+        <button class="btn btn-sso" onclick="showPage('loginAdminPage')">
+            📷 Login sebagai Admin (Face-ID)
+        </button>
+        <button class="btn btn-outline" onclick="showPage('loginSuperadminPage')">
+            ⚙️ Login Superadmin (Manual)
+        </button>
+    </div>
+
+    <!-- 2. HALAMAN LOGIN SUPERADMIN -->
+    <div class="container hidden text-center" id="loginSuperadminPage">
+        <h2>Login Superadmin</h2>
+        <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 0.9rem;">Hanya untuk pemegang sistem utama portal.</p>
+        
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="username" value="superadmin">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" value="rahasia123">
+        </div>
+        
+        <button class="btn btn-primary" onclick="loginSuperadmin()">Login Superadmin</button>
+        <button class="btn btn-outline" style="margin-top: 10px;" onclick="showPage('selectionPage')">Kembali</button>
+        
+        <div id="loginSaStatus" style="margin-top: 15px; color: #e74c3c; font-weight: bold;"></div>
+    </div>
+
+    <!-- 3. DASHBOARD SUPERADMIN -->
+    <div class="container hidden" id="dashboardSuperadminPage">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Panel Superadmin</h2>
+            <button class="btn btn-danger" style="width: auto; padding: 8px 15px;" onclick="location.reload()">Logout</button>
+        </div>
+        
+        <div style="background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+            Akses <b>Superadmin Utama</b>.<br>Gunakan kamera untuk mendaftarkan akun Admin Redaksi yang baru.
+        </div>
+
+        <h3>Daftar Admin Redaksi</h3>
+        <ul class="admin-list" id="adminList"></ul>
+
+        <button class="btn btn-sso" onclick="startScanner('register')">
+            ➕ Daftarkan Admin Baru via Face-ID
+        </button>
+
+        <div id="registerStatus" class="text-center" style="margin-top: 15px; font-weight: bold; color: #3498db;"></div>
+
+        <div class="camera-box" id="cameraBoxRegister">
+            <video id="videoRegister" autoplay muted playsinline></video>
+            <canvas id="canvasRegister"></canvas>
+        </div>
+    </div>
+
+    <!-- 4. HALAMAN LOGIN ADMIN REDAKSI -->
+    <div class="container hidden text-center" id="loginAdminPage">
+        <h2>Login Admin Redaksi</h2>
+        <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 0.9rem;">Arahkan wajah Anda ke kamera untuk masuk.</p>
+        
+        <div id="loginAdminStatus" class="status-badge">Menyiapkan Kamera...</div>
+        
+        <div class="camera-box" id="cameraBoxLogin">
+            <video id="videoLogin" autoplay muted playsinline></video>
+            <canvas id="canvasLogin"></canvas>
+        </div>
+
+        <button class="btn btn-outline" style="margin-top: 20px;" onclick="stopCamera(); showPage('selectionPage')">Kembali</button>
+    </div>
+
+    <!-- 5. DASHBOARD ADMIN REDAKSI -->
+    <div class="container hidden" id="dashboardAdminPage">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">Ruang Redaksi</h2>
+            <button class="btn btn-danger" style="width: auto; padding: 8px 15px;" onclick="location.reload()">Logout</button>
+        </div>
+
+        <div class="profile-card">
+            <img id="adminPhoto" src="" alt="Profile">
+            <div>
+                <h3 id="adminName" style="color: #2c3e50; font-size: 1.2rem;">Nama</h3>
+                <p style="color: #3498db; font-size: 0.85rem; font-weight: bold;">Editor Berita (Admin)</p>
+                <p id="adminNip" style="color: #7f8c8d; font-size: 0.8rem;">NIP</p>
+            </div>
+        </div>
+
+        <div style="padding: 20px; border: 1px dashed #ccc; border-radius: 8px; text-align: center; color: #7f8c8d;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">📝</div>
+            Di halaman ini Anda hanya bisa menulis dan mengedit berita.<br>
+            <b>Anda tidak memiliki akses untuk menambah admin lain.</b>
+        </div>
+    </div>
+
+    <script>
+        const SSO_API_URL = 'http://localhost:8000/api/v1/auth/verify-face';
+        const APP_ID = 'APP-PORTAL-001'; 
+        
+        let localAdmins = JSON.parse(localStorage.getItem('portal_admins')) || []; 
+        let currentMode = ''; 
+        let isProcessing = false;
+        let activeVideo = null;
+        let scanInterval = null;
+
+        // Navigasi UI
+        function showPage(pageId) {
+            document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
+            document.getElementById(pageId).classList.remove('hidden');
+
+            if (pageId === 'loginAdminPage') {
+                startScanner('login');
+            }
+        }
+
+        // --- MODEL AI ---
+        let modelsLoaded = false;
+        async function initModels() {
+            if (modelsLoaded) return true;
+            try {
+                await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                modelsLoaded = true;
+                return true;
+            } catch (err) {
+                alert("Gagal memuat AI. Pastikan server Vite Face-ID berjalan.");
+                return false;
+            }
+        }
+
+        // --- LOGIN SUPERADMIN ---
+        function loginSuperadmin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            
+            if (user === 'superadmin' && pass === 'rahasia123') {
+                showPage('dashboardSuperadminPage');
+                renderAdminList();
+            } else {
+                document.getElementById('loginSaStatus').innerText = "Username atau Password Salah!";
+            }
+        }
+
+        // --- SCANNER KAMERA ---
+        async function startScanner(mode) {
+            currentMode = mode;
+            const statusEl = mode === 'login' ? document.getElementById('loginAdminStatus') : document.getElementById('registerStatus');
+            const cameraBox = mode === 'login' ? document.getElementById('cameraBoxLogin') : document.getElementById('cameraBoxRegister');
+            activeVideo = mode === 'login' ? document.getElementById('videoLogin') : document.getElementById('videoRegister');
+            const activeCanvas = mode === 'login' ? document.getElementById('canvasLogin') : document.getElementById('canvasRegister');
+
+            statusEl.innerText = "Memuat AI...";
+            if (mode === 'login') statusEl.className = 'status-badge ready';
+
+            const ready = await initModels();
+            if (!ready) return;
+
+            statusEl.innerText = "Membuka Kamera...";
+            cameraBox.style.display = 'block';
+
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            activeVideo.srcObject = stream;
+
+            activeVideo.addEventListener('play', () => {
+                statusEl.innerText = "Mencari Wajah...";
+                activeCanvas.width = activeVideo.videoWidth;
+                activeCanvas.height = activeVideo.videoHeight;
+                const displaySize = { width: activeVideo.videoWidth, height: activeVideo.videoHeight };
+                faceapi.matchDimensions(activeCanvas, displaySize);
+
+                if (scanInterval) clearInterval(scanInterval);
+
+                scanInterval = setInterval(async () => {
+                    if (isProcessing || activeVideo.paused) return;
+
+                    const detection = await faceapi.detectSingleFace(activeVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                        .withFaceLandmarks()
+                        .withFaceDescriptor();
+
+                    const ctx = activeCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
+
+                    if (detection) {
+                        faceapi.draw.drawDetections(activeCanvas, faceapi.resizeResults(detection, displaySize));
+                        
+                        if (detection.detection.score > 0.7 && !isProcessing) {
+                            isProcessing = true;
+                            statusEl.innerText = 'Memverifikasi ke Server SSO...';
+                            if (mode === 'login') statusEl.className = 'status-badge ready';
+                            
+                            await processSSO(Array.from(detection.descriptor));
+                        }
+                    }
+                }, 500);
+            });
+        }
+
+        async function processSSO(descriptorArray) {
+            const statusEl = currentMode === 'login' ? document.getElementById('loginAdminStatus') : document.getElementById('registerStatus');
+            
+            try {
+                const response = await fetch(SSO_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ app_id: APP_ID, face_descriptor: descriptorArray })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const employee = data.data;
+
+                    if (currentMode === 'register') {
+                        stopCamera();
+                        const isExist = localAdmins.find(a => a.nip === employee.employee_id);
+                        if (!isExist) {
+                            localAdmins.push({ nip: employee.employee_id, name: employee.name, photo: employee.photo_thumbnail });
+                            localStorage.setItem('portal_admins', JSON.stringify(localAdmins));
+                            renderAdminList();
+                            statusEl.innerText = `✅ Sukses! ${employee.name} didaftarkan sebagai Admin Portal.`;
+                        } else {
+                            statusEl.innerText = `⚠️ ${employee.name} sudah terdaftar sebagai Admin!`;
+                        }
+                    } 
+                    else if (currentMode === 'login') {
+                        const hasAccess = localAdmins.find(a => a.nip === employee.employee_id);
+                        if (hasAccess) {
+                            stopCamera();
+                            // Masuk ke Dashboard Admin Redaksi
+                            showPage('dashboardAdminPage');
+                            document.getElementById('adminPhoto').src = employee.photo_thumbnail || 'https://via.placeholder.com/60';
+                            document.getElementById('adminName').innerText = employee.name;
+                            document.getElementById('adminNip').innerText = `NIP: ${employee.employee_id}`;
+                        } else {
+                            statusEl.innerText = `Akses Ditolak! ${employee.name} belum didaftarkan sebagai Admin oleh Superadmin.`;
+                            statusEl.className = 'status-badge error';
+                            setTimeout(() => { isProcessing = false; }, 3000);
+                        }
+                    }
+                } else {
+                    statusEl.innerText = data.message || 'Wajah tidak terdaftar di database utama YPI Al Azhar.';
+                    if (currentMode === 'login') statusEl.className = 'status-badge error';
+                    setTimeout(() => { isProcessing = false; }, 3000);
+                }
+            } catch (err) {
+                statusEl.innerText = 'Gagal terhubung ke Server SSO.';
+                if (currentMode === 'login') statusEl.className = 'status-badge error';
+                setTimeout(() => { isProcessing = false; }, 3000);
+            }
+        }
+
+        function renderAdminList() {
+            const listEl = document.getElementById('adminList');
+            if (localAdmins.length === 0) {
+                listEl.innerHTML = '<li style="padding: 10px; color: #7f8c8d; font-size: 0.9rem;">Belum ada admin redaksi yang didaftarkan.</li>';
+                return;
+            }
+            listEl.innerHTML = localAdmins.map(admin => `
+                <li class="admin-item">
+                    <img src="${admin.photo || 'https://via.placeholder.com/40'}" alt="">
+                    <div>
+                        <div style="font-weight: bold; color: #2c3e50;">${admin.name}</div>
+                        <div style="font-size: 0.8rem; color: #7f8c8d;">NIP: ${admin.nip}</div>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function stopCamera() {
+            if (scanInterval) clearInterval(scanInterval);
+            if (activeVideo && activeVideo.srcObject) {
+                activeVideo.pause();
+                activeVideo.srcObject.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('cameraBoxLogin').style.display = 'none';
+            document.getElementById('cameraBoxRegister').style.display = 'none';
+            isProcessing = false;
+        }
+    </script>
+</body>
+</html>
