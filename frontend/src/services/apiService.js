@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: 'https://sso.donarazhar.site/api/v1',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
