@@ -422,8 +422,7 @@ function AdminPanel({ addToast }) {
             <table>
               <thead>
                 <tr>
-                  <th>Pegawai</th>
-                  <th>NIP</th>
+                  <th>Pegawai & NIP</th>
                   <th>Jabatan & Cabang</th>
                   <th>Status Wajah</th>
                   <th style={{ textAlign: 'right' }}>Aksi</th>
@@ -443,11 +442,11 @@ function AdminPanel({ addToast }) {
                         </div>
                         <div>
                           <div className="name">{emp.nama}</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            ID: {emp.nip}
+                          </div>
                         </div>
                       </div>
-                    </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
-                      {emp.nip}
                     </td>
                     <td>
                       <div>{emp.jabatan || '—'}</div>
