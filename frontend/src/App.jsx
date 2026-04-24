@@ -107,7 +107,7 @@ function AppContent() {
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <HiOutlineUsers className="nav-icon" /> Data Master
+                <HiOutlineUsers className="nav-icon" /> Data Pegawai
               </div>
               <span style={{ fontSize: '0.8rem', transition: 'transform 0.2s', transform: isPegawaiMenuOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
             </a>
