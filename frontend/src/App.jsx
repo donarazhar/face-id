@@ -100,9 +100,6 @@ function AppContent() {
           <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
             <HiOutlineTemplate className="nav-icon" /> Dashboard
           </Link>
-          <Link to="/employees" className={`nav-link ${location.pathname === '/employees' ? 'active' : ''}`}>
-            <HiOutlineUsers className="nav-icon" /> Kelola Pegawai
-          </Link>
           <div>
             <a 
               href="#" 
@@ -127,6 +124,9 @@ function AppContent() {
               </div>
             )}
           </div>
+          <Link to="/employees" className={`nav-link ${location.pathname === '/employees' ? 'active' : ''}`}>
+            <HiOutlineUsers className="nav-icon" /> Kelola Pegawai
+          </Link>
           <Link to="/terminal" className={`nav-link ${location.pathname === '/terminal' ? 'active' : ''}`}>
             <HiOutlineCamera className="nav-icon" /> Terminal Absensi
           </Link>
