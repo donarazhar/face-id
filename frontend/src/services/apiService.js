@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+// Di mode development (npm run dev), gunakan URL relatif agar Vite proxy
+// meneruskan request ke backend Laravel lokal (http://localhost:8000).
+// Di mode production (npm run build), gunakan URL server production.
+const baseURL = import.meta.env.DEV
+  ? '/api/v1'
+  : 'https://sso.donarazhar.site/api/v1';
+
 const api = axios.create({
-  baseURL: 'https://sso.donarazhar.site/api/v1',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

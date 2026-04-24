@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { employeeApi } from '../services/apiService';
-import { loadModels, detectAndDescribe, drawDetection, captureThumb, areModelsLoaded } from '../services/faceApiService';
+import { loadModels, loadPreciseModels, detectPrecise, detectAndDescribe, drawDetection, captureThumb, areModelsLoaded, arePreciseModelsLoaded, validateFaceQuality } from '../services/faceApiService';
 import { HiOutlinePlus, HiOutlineCamera, HiOutlineTrash, HiOutlinePencil, HiOutlineX, HiOutlineRefresh } from 'react-icons/hi';
 
 function AdminPanel({ addToast }) {
@@ -14,12 +14,14 @@ function AdminPanel({ addToast }) {
   const [modelsReady, setModelsReady] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [faceDetected, setFaceDetected] = useState(null);
+  const [faceQuality, setFaceQuality] = useState(null);
   const [enrolling, setEnrolling] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  const detectIntervalRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const lastDetectionTime = useRef(0);
 
   useEffect(() => {
     loadEmployees();
@@ -28,9 +30,12 @@ function AdminPanel({ addToast }) {
   }, []);
 
   const initModels = async () => {
+    // Load fast models first (for quick UI readiness)
     const loaded = await loadModels();
-    setModelsReady(loaded);
-    if (!loaded) {
+    // Then load precise models for high-quality enrollment
+    const precise = await loadPreciseModels();
+    setModelsReady(loaded && precise);
+    if (!loaded || !precise) {
       addToast('Gagal memuat model Face-API. Periksa folder /public/models/', 'error');
     }
   };
@@ -96,6 +101,7 @@ function AdminPanel({ addToast }) {
   const startCamera = async (employeeId) => {
     setEnrollingId(employeeId);
     setFaceDetected(null);
+    setFaceQuality(null);
     setCameraActive(true);
 
     try {
@@ -116,9 +122,9 @@ function AdminPanel({ addToast }) {
   };
 
   const stopCamera = () => {
-    if (detectIntervalRef.current) {
-      clearInterval(detectIntervalRef.current);
-      detectIntervalRef.current = null;
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -127,16 +133,37 @@ function AdminPanel({ addToast }) {
     setCameraActive(false);
     setEnrollingId(null);
     setFaceDetected(null);
+    setFaceQuality(null);
   };
 
   const startDetection = () => {
-    if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
 
-    detectIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.paused) return;
+    const detectLoop = async () => {
+      if (!videoRef.current || videoRef.current.paused) {
+        animFrameRef.current = requestAnimationFrame(detectLoop);
+        return;
+      }
 
-      const result = await detectAndDescribe(videoRef.current);
+      const now = performance.now();
+      // Throttle: deteksi setiap ~300ms (enrollment butuh akurasi, bukan kecepatan)
+      if (now - lastDetectionTime.current < 300) {
+        animFrameRef.current = requestAnimationFrame(detectLoop);
+        return;
+      }
+      lastDetectionTime.current = now;
+
+      // Gunakan model PRESISI untuk enrollment (SSD MobileNet + Full Landmarks)
+      const result = await detectPrecise(videoRef.current);
       setFaceDetected(result);
+
+      // Validasi kualitas wajah secara real-time
+      if (result) {
+        const quality = validateFaceQuality(result, videoRef.current);
+        setFaceQuality(quality);
+      } else {
+        setFaceQuality(null);
+      }
 
       if (canvasRef.current && videoRef.current) {
         const displaySize = {
@@ -145,13 +172,27 @@ function AdminPanel({ addToast }) {
         };
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
-        drawDetection(canvasRef.current, result, displaySize, result ? 'Wajah Terdeteksi' : '');
+
+        const qualityOk = result && faceQuality?.valid;
+        const color = qualityOk ? '#00ff88' : (result ? '#fdcb6e' : '');
+        const label = qualityOk ? '✅ Siap Simpan' : (result ? '⚠️ Perbaiki Posisi' : '');
+        drawDetection(canvasRef.current, result, displaySize, label, color);
       }
-    }, 300);
+
+      animFrameRef.current = requestAnimationFrame(detectLoop);
+    };
+
+    animFrameRef.current = requestAnimationFrame(detectLoop);
   };
 
   const handleEnrollFace = async () => {
     if (!faceDetected || !enrollingId) return;
+
+    // Validasi kualitas wajah sebelum menyimpan
+    if (faceQuality && !faceQuality.valid) {
+      addToast(`Kualitas wajah belum memenuhi: ${faceQuality.issues[0]}`, 'error');
+      return;
+    }
 
     setEnrolling(true);
     try {
@@ -233,7 +274,7 @@ function AdminPanel({ addToast }) {
               <button
                 className="btn btn-primary btn-lg"
                 onClick={handleEnrollFace}
-                disabled={!faceDetected || enrolling}
+                disabled={!faceDetected || enrolling || (faceQuality && !faceQuality.valid)}
               >
                 {enrolling ? (
                   <><span className="spinner"></span> Menyimpan...</>
@@ -251,6 +292,20 @@ function AdminPanel({ addToast }) {
                 <span className="text-sm text-muted">
                   Confidence: {Math.round(faceDetected.score * 100)}% • Descriptor: 128 dimensi ✓
                 </span>
+                {faceQuality && !faceQuality.valid && (
+                  <div style={{ marginTop: '8px' }}>
+                    {faceQuality.issues.map((issue, i) => (
+                      <div key={i} className="badge badge-warning" style={{ display: 'block', marginTop: '4px', fontSize: '0.75rem' }}>
+                        ⚠️ {issue}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {faceQuality && faceQuality.valid && (
+                  <div style={{ marginTop: '8px' }}>
+                    <span className="badge badge-success">✅ Kualitas wajah baik — siap simpan</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

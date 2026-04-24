@@ -1,10 +1,16 @@
 import * as faceapi from '@vladmandic/face-api';
 
 let modelsLoaded = false;
+let modelsLoadedPrecise = false;
+
+// ============================================================================
+// MODEL LOADING
+// ============================================================================
 
 /**
- * Load face-api.js models from /models directory.
- * Models: SSD MobileNet V1, Face Landmark 68, Face Recognition
+ * Load FAST detection models (TinyFaceDetector + Tiny Landmarks + Recognition).
+ * Total size: ~277KB vs ~12MB for full models. Loads 30x faster.
+ * Best for: Terminal absensi, SSO login, real-time scanning.
  */
 export async function loadModels() {
   if (modelsLoaded) return true;
@@ -13,12 +19,12 @@ export async function loadModels() {
 
   try {
     await Promise.all([
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
     ]);
     modelsLoaded = true;
-    console.log('✅ Face-API models loaded successfully');
+    console.log('⚡ Fast Face-API models loaded (TinyFaceDetector)');
     return true;
   } catch (error) {
     console.error('❌ Failed to load Face-API models:', error);
@@ -27,17 +33,55 @@ export async function loadModels() {
 }
 
 /**
- * Check if models are loaded.
+ * Load PRECISE detection models (SSD MobileNet V1 + Full Landmarks + Recognition).
+ * Heavier but more accurate — used for face enrollment only.
+ */
+export async function loadPreciseModels() {
+  if (modelsLoadedPrecise) return true;
+
+  // Ensure fast models are also loaded (for recognition net)
+  if (!modelsLoaded) await loadModels();
+
+  const MODEL_URL = '/models';
+
+  try {
+    await Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    ]);
+    modelsLoadedPrecise = true;
+    console.log('🔬 Precise Face-API models loaded (SSD MobileNet V1)');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to load precise models:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if fast models are loaded.
  */
 export function areModelsLoaded() {
   return modelsLoaded;
 }
 
 /**
- * Detect a single face and extract its 128-d descriptor.
+ * Check if precise (enrollment) models are loaded.
+ */
+export function arePreciseModelsLoaded() {
+  return modelsLoadedPrecise;
+}
+
+// ============================================================================
+// FACE DETECTION
+// ============================================================================
+
+/**
+ * FAST detection — uses TinyFaceDetector for real-time scanning.
+ * ~3-5x faster than SSD MobileNet. Ideal for attendance terminal & SSO.
  * 
  * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement} input
- * @returns {Promise<{detection: object, descriptor: Float32Array, landmarks: object}|null>}
+ * @returns {Promise<{detection, descriptor, landmarks, box, score}|null>}
  */
 export async function detectAndDescribe(input) {
   if (!modelsLoaded) {
@@ -45,24 +89,67 @@ export async function detectAndDescribe(input) {
     return null;
   }
 
-  const result = await faceapi
-    .detectSingleFace(input, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-    .withFaceLandmarks()
-    .withFaceDescriptor();
+  try {
+    const result = await faceapi
+      .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({
+        inputSize: 224,       // Smaller = faster (options: 128, 160, 224, 320, 416, 512, 608)
+        scoreThreshold: 0.6,  // Higher threshold = fewer false positives
+      }))
+      .withFaceLandmarks(true) // true = use tiny landmarks (faster)
+      .withFaceDescriptor();
 
-  if (!result) return null;
+    if (!result) return null;
 
-  return {
-    detection: result.detection,
-    descriptor: Array.from(result.descriptor), // Convert Float32Array to regular array
-    landmarks: result.landmarks,
-    box: result.detection.box,
-    score: result.detection.score,
-  };
+    return {
+      detection: result.detection,
+      descriptor: Array.from(result.descriptor),
+      landmarks: result.landmarks,
+      box: result.detection.box,
+      score: result.detection.score,
+    };
+  } catch (err) {
+    // Silently handle detection errors (e.g., video not ready)
+    return null;
+  }
 }
 
 /**
- * Detect all faces in an input.
+ * PRECISE detection — uses SSD MobileNet V1 + full landmarks.
+ * More accurate descriptor extraction. Use ONLY for face enrollment.
+ * 
+ * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement} input
+ * @returns {Promise<{detection, descriptor, landmarks, box, score}|null>}
+ */
+export async function detectPrecise(input) {
+  if (!modelsLoadedPrecise) {
+    console.warn('Precise models not loaded yet');
+    return null;
+  }
+
+  try {
+    const result = await faceapi
+      .detectSingleFace(input, new faceapi.SsdMobilenetv1Options({
+        minConfidence: 0.5,
+      }))
+      .withFaceLandmarks(false) // false = use full 68-point landmarks
+      .withFaceDescriptor();
+
+    if (!result) return null;
+
+    return {
+      detection: result.detection,
+      descriptor: Array.from(result.descriptor),
+      landmarks: result.landmarks,
+      box: result.detection.box,
+      score: result.detection.score,
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Detect all faces in an input (fast mode).
  * 
  * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement} input
  * @returns {Promise<Array>}
@@ -70,19 +157,79 @@ export async function detectAndDescribe(input) {
 export async function detectAllFaces(input) {
   if (!modelsLoaded) return [];
 
-  const results = await faceapi
-    .detectAllFaces(input, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-    .withFaceLandmarks()
-    .withFaceDescriptors();
+  try {
+    const results = await faceapi
+      .detectAllFaces(input, new faceapi.TinyFaceDetectorOptions({
+        inputSize: 224,
+        scoreThreshold: 0.6,
+      }))
+      .withFaceLandmarks(true)
+      .withFaceDescriptors();
 
-  return results.map(r => ({
-    detection: r.detection,
-    descriptor: Array.from(r.descriptor),
-    landmarks: r.landmarks,
-    box: r.detection.box,
-    score: r.detection.score,
-  }));
+    return results.map(r => ({
+      detection: r.detection,
+      descriptor: Array.from(r.descriptor),
+      landmarks: r.landmarks,
+      box: r.detection.box,
+      score: r.detection.score,
+    }));
+  } catch (err) {
+    return [];
+  }
 }
+
+// ============================================================================
+// FACE QUALITY VALIDATION
+// ============================================================================
+
+/**
+ * Validate face quality before enrollment.
+ * Checks: detection confidence, face size, face position.
+ * 
+ * @param {object} detection - Detection result
+ * @param {HTMLVideoElement} video - Source video element
+ * @returns {{ valid: boolean, issues: string[] }}
+ */
+export function validateFaceQuality(detection, video) {
+  const issues = [];
+
+  if (!detection) {
+    return { valid: false, issues: ['Tidak ada wajah terdeteksi'] };
+  }
+
+  // 1. Detection confidence must be high
+  if (detection.score < 0.85) {
+    issues.push(`Kualitas deteksi rendah (${Math.round(detection.score * 100)}%). Perbaiki pencahayaan.`);
+  }
+
+  // 2. Face must be large enough in frame
+  const box = detection.box;
+  const videoWidth = video.videoWidth || 640;
+  const videoHeight = video.videoHeight || 480;
+  const faceArea = (box.width * box.height) / (videoWidth * videoHeight);
+
+  if (faceArea < 0.04) {
+    issues.push('Wajah terlalu jauh. Dekatkan ke kamera.');
+  }
+
+  if (faceArea > 0.6) {
+    issues.push('Wajah terlalu dekat. Mundur sedikit.');
+  }
+
+  // 3. Face should be reasonably centered
+  const centerX = (box.x + box.width / 2) / videoWidth;
+  const centerY = (box.y + box.height / 2) / videoHeight;
+
+  if (centerX < 0.2 || centerX > 0.8 || centerY < 0.15 || centerY > 0.85) {
+    issues.push('Posisikan wajah di tengah kamera.');
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+// ============================================================================
+// DRAWING & CAPTURE UTILITIES
+// ============================================================================
 
 /**
  * Draw face detection bounding box and landmarks on canvas.

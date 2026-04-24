@@ -142,14 +142,21 @@
     </div>
 
     <script>
-        const SSO_API_URL = 'https://sso.donarazhar.site/api/v1/auth/verify-face';
+        // ====================================================================
+        // KONFIGURASI — Otomatis pilih URL lokal atau production
+        // ====================================================================
+        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        const SSO_API_URL = isLocal
+            ? '/api/v1/auth/verify-face'
+            : 'https://sso.donarazhar.site/api/v1/auth/verify-face';
         const APP_ID = 'APP-PORTAL-001'; 
         
         let localAdmins = JSON.parse(localStorage.getItem('portal_admins')) || []; 
         let currentMode = ''; 
         let isProcessing = false;
         let activeVideo = null;
-        let scanInterval = null;
+        let animFrameId = null;
+        let lastDetectTime = 0;
 
         // Navigasi UI
         function showPage(pageId) {
@@ -161,15 +168,21 @@
             }
         }
 
-        // --- MODEL AI ---
+        // ====================================================================
+        // MODEL AI — Gunakan TinyFaceDetector (193KB) bukan SSD MobileNet (5.6MB)
+        // ====================================================================
         let modelsLoaded = false;
         async function initModels() {
             if (modelsLoaded) return true;
             try {
-                await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-                await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                // TinyFaceDetector: 29x lebih kecil, 3-5x lebih cepat
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+                    faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models'),
+                    faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+                ]);
                 modelsLoaded = true;
+                console.log('⚡ Model AI dimuat (TinyFaceDetector)');
                 return true;
             } catch (err) {
                 alert("Gagal memuat AI. Pastikan server Vite Face-ID berjalan.");
@@ -190,7 +203,9 @@
             }
         }
 
-        // --- SCANNER KAMERA ---
+        // ====================================================================
+        // SCANNER KAMERA — requestAnimationFrame + throttle (bukan setInterval)
+        // ====================================================================
         async function startScanner(mode) {
             currentMode = mode;
             const statusEl = mode === 'login' ? document.getElementById('loginAdminStatus') : document.getElementById('registerStatus');
@@ -207,7 +222,8 @@
             statusEl.innerText = "Membuka Kamera...";
             cameraBox.style.display = 'block';
 
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            // Resolusi lebih kecil = AI lebih cepat memproses
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
             activeVideo.srcObject = stream;
 
             activeVideo.addEventListener('play', () => {
@@ -217,30 +233,59 @@
                 const displaySize = { width: activeVideo.videoWidth, height: activeVideo.videoHeight };
                 faceapi.matchDimensions(activeCanvas, displaySize);
 
-                if (scanInterval) clearInterval(scanInterval);
-
-                scanInterval = setInterval(async () => {
-                    if (isProcessing || activeVideo.paused) return;
-
-                    const detection = await faceapi.detectSingleFace(activeVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-
-                    const ctx = activeCanvas.getContext('2d');
-                    ctx.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
-
-                    if (detection) {
-                        faceapi.draw.drawDetections(activeCanvas, faceapi.resizeResults(detection, displaySize));
-                        
-                        if (detection.detection.score > 0.7 && !isProcessing) {
-                            isProcessing = true;
-                            statusEl.innerText = 'Memverifikasi ke Server SSO...';
-                            if (mode === 'login') statusEl.className = 'status-badge ready';
-                            
-                            await processSSO(Array.from(detection.descriptor));
-                        }
+                // Gunakan requestAnimationFrame + throttle (lebih smooth daripada setInterval)
+                function detectLoop() {
+                    if (!activeVideo || activeVideo.paused) {
+                        animFrameId = requestAnimationFrame(detectLoop);
+                        return;
                     }
-                }, 500);
+
+                    const now = performance.now();
+                    // Deteksi setiap ~200ms (5fps) — cepat & efisien
+                    if (now - lastDetectTime < 200) {
+                        animFrameId = requestAnimationFrame(detectLoop);
+                        return;
+                    }
+                    lastDetectTime = now;
+
+                    if (isProcessing) {
+                        animFrameId = requestAnimationFrame(detectLoop);
+                        return;
+                    }
+
+                    // TinyFaceDetector: inputSize 224 = sweet spot speed vs accuracy
+                    faceapi.detectSingleFace(activeVideo, new faceapi.TinyFaceDetectorOptions({
+                        inputSize: 224,
+                        scoreThreshold: 0.6,
+                    }))
+                    .withFaceLandmarks(true)  // true = tiny landmarks (lebih cepat)
+                    .withFaceDescriptor()
+                    .then(detection => {
+                        const ctx = activeCanvas.getContext('2d');
+                        ctx.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
+
+                        if (detection) {
+                            faceapi.draw.drawDetections(activeCanvas, faceapi.resizeResults(detection, displaySize));
+                            
+                            if (detection.detection.score > 0.6 && !isProcessing) {
+                                isProcessing = true;
+                                statusEl.innerText = 'Memverifikasi ke Server SSO...';
+                                if (mode === 'login') statusEl.className = 'status-badge ready';
+                                
+                                processSSO(Array.from(detection.descriptor));
+                            }
+                        }
+
+                        animFrameId = requestAnimationFrame(detectLoop);
+                    })
+                    .catch(() => {
+                        animFrameId = requestAnimationFrame(detectLoop);
+                    });
+                }
+
+                // Hentikan loop sebelumnya jika ada
+                if (animFrameId) cancelAnimationFrame(animFrameId);
+                animFrameId = requestAnimationFrame(detectLoop);
             });
         }
 
@@ -283,18 +328,18 @@
                         } else {
                             statusEl.innerText = `Akses Ditolak! ${employee.name} belum didaftarkan sebagai Admin oleh Superadmin.`;
                             statusEl.className = 'status-badge error';
-                            setTimeout(() => { isProcessing = false; }, 3000);
+                            setTimeout(() => { isProcessing = false; }, 2000);
                         }
                     }
                 } else {
                     statusEl.innerText = data.message || 'Wajah tidak terdaftar di database utama YPI Al Azhar.';
                     if (currentMode === 'login') statusEl.className = 'status-badge error';
-                    setTimeout(() => { isProcessing = false; }, 3000);
+                    setTimeout(() => { isProcessing = false; }, 2000);
                 }
             } catch (err) {
                 statusEl.innerText = 'Gagal terhubung ke Server SSO.';
                 if (currentMode === 'login') statusEl.className = 'status-badge error';
-                setTimeout(() => { isProcessing = false; }, 3000);
+                setTimeout(() => { isProcessing = false; }, 2000);
             }
         }
 
@@ -316,7 +361,10 @@
         }
 
         function stopCamera() {
-            if (scanInterval) clearInterval(scanInterval);
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
             if (activeVideo && activeVideo.srcObject) {
                 activeVideo.pause();
                 activeVideo.srcObject.getTracks().forEach(track => track.stop());

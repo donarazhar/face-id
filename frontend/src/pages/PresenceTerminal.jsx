@@ -15,8 +15,9 @@ function PresenceTerminal({ addToast }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  const detectIntervalRef = useRef(null);
+  const animFrameRef = useRef(null);
   const cooldownRef = useRef(false);
+  const lastDetectionTime = useRef(0);
 
   useEffect(() => {
     initModels();
@@ -49,7 +50,8 @@ function PresenceTerminal({ addToast }) {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' }
+        // Resolusi lebih kecil = deteksi lebih cepat
+        video: { width: 320, height: 240, facingMode: 'user' }
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -64,9 +66,9 @@ function PresenceTerminal({ addToast }) {
   };
 
   const stopScanner = () => {
-    if (detectIntervalRef.current) {
-      clearInterval(detectIntervalRef.current);
-      detectIntervalRef.current = null;
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -76,11 +78,28 @@ function PresenceTerminal({ addToast }) {
     setFaceDetected(null);
   };
 
+  // Menggunakan requestAnimationFrame + throttle untuk deteksi lebih smooth
   const startAutoDetection = () => {
-    if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);
+    const detectLoop = async () => {
+      if (!videoRef.current || videoRef.current.paused) {
+        animFrameRef.current = requestAnimationFrame(detectLoop);
+        return;
+      }
 
-    detectIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.paused || processing || cooldownRef.current) return;
+      const now = performance.now();
+      // Throttle: deteksi setiap ~200ms (5fps) — cukup cepat untuk real-time
+      if (now - lastDetectionTime.current < 200) {
+        animFrameRef.current = requestAnimationFrame(detectLoop);
+        return;
+      }
+
+      // Skip deteksi jika sedang proses atau cooldown
+      if (processing || cooldownRef.current) {
+        animFrameRef.current = requestAnimationFrame(detectLoop);
+        return;
+      }
+
+      lastDetectionTime.current = now;
 
       const result = await detectAndDescribe(videoRef.current);
       setFaceDetected(result);
@@ -101,11 +120,15 @@ function PresenceTerminal({ addToast }) {
         }
       }
 
-      // Auto-recognize when face is detected with high confidence
-      if (result && result.score > 0.7 && !processing && !cooldownRef.current) {
+      // Auto-recognize ketika wajah terdeteksi dengan confidence tinggi
+      if (result && result.score > 0.65 && !processing && !cooldownRef.current) {
         await recognizeFace(result.descriptor);
       }
-    }, 500);
+
+      animFrameRef.current = requestAnimationFrame(detectLoop);
+    };
+
+    animFrameRef.current = requestAnimationFrame(detectLoop);
   };
 
   const recognizeFace = async (descriptor) => {
@@ -127,11 +150,11 @@ function PresenceTerminal({ addToast }) {
 
       loadTodayLogs();
 
-      // Auto-dismiss feedback after 4 seconds
+      // Cooldown lebih singkat: 2.5 detik (dari 4 detik)
       setTimeout(() => {
         setFeedback(null);
         cooldownRef.current = false;
-      }, 4000);
+      }, 2500);
 
     } catch (err) {
       if (err.response?.status === 404) {
@@ -148,7 +171,7 @@ function PresenceTerminal({ addToast }) {
       setTimeout(() => {
         setFeedback(null);
         cooldownRef.current = false;
-      }, 3000);
+      }, 2000);
     } finally {
       setProcessing(false);
     }

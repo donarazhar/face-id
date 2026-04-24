@@ -9,6 +9,7 @@ use App\Http\Requests\EnrollFaceRequest;
 use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use Illuminate\Http\JsonResponse;
+use App\Services\FaceMatchingService;
 
 class EmployeeController extends Controller
 {
@@ -89,6 +90,9 @@ class EmployeeController extends Controller
             'photo_thumbnail' => $request->thumbnail,
         ]);
 
+        // Invalidate cached descriptors agar data baru langsung dikenali
+        FaceMatchingService::clearCache();
+
         return response()->json([
             'success' => true,
             'message' => "Wajah {$employee->nama} berhasil didaftarkan.",
@@ -106,6 +110,9 @@ class EmployeeController extends Controller
             'face_registered_at' => null,
             'photo_thumbnail' => null,
         ]);
+
+        // Invalidate cached descriptors
+        FaceMatchingService::clearCache();
 
         return response()->json([
             'success' => true,
