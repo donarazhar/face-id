@@ -39,6 +39,7 @@ export const branchApi = {
 export const attendanceApi = {
   recognize: (data) => api.post('/attendance/recognize', data),
   today: () => api.get('/attendance/today'),
+  stats: () => api.get('/attendance/stats'),
   report: (params) => api.get('/attendance/report', { params }),
 };
 

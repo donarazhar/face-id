@@ -96,7 +96,7 @@ class AttendanceController extends Controller
      */
     public function report(Request $request): JsonResponse
     {
-        $query = AttendanceLog::with('employee');
+        $query = AttendanceLog::with('employee.branch');
 
         if ($request->has('date_from')) {
             $query->whereDate('check_in_time', '>=', $request->date_from);
@@ -108,6 +108,12 @@ class AttendanceController extends Controller
 
         if ($request->has('employee_id')) {
             $query->where('employee_id', $request->employee_id);
+        }
+
+        if ($request->has('branch_id')) {
+            $query->whereHas('employee', function ($q) use ($request) {
+                $q->where('branch_id', $request->branch_id);
+            });
         }
 
         $logs = $query->orderBy('check_in_time', 'desc')->get();
