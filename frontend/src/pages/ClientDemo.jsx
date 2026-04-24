@@ -1,5 +1,5 @@
 import React from 'react';
-import { HiOutlineExternalLink, HiOutlineDesktopComputer, HiOutlineCash } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineDesktopComputer, HiOutlineCash, HiOutlineClock } from 'react-icons/hi';
 
 function ClientDemo() {
   const apps = [
@@ -20,6 +20,15 @@ function ClientDemo() {
       url: '/client-demo/payroll.html',
       color: '#2ecc71',
       badge: 'APP-PAYROLL-002'
+    },
+    {
+      id: 'attendance',
+      name: 'Terminal Absensi',
+      description: 'Mesin absensi digital berbasis Face-ID. Catat waktu datang & pulang otomatis dengan aturan jeda 5 jam.',
+      icon: <HiOutlineClock style={{ fontSize: '2rem', color: '#9b59b6' }} />,
+      url: '/client-demo/attendance.html',
+      color: '#9b59b6',
+      badge: 'APP-ABSEN-003'
     }
   ];
 

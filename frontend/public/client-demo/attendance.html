@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Absensi — Face-ID</title>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: #e0e0e0; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+
+        .terminal { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: 24px; width: 100%; max-width: 520px; text-align: center; }
+
+        .clock { font-family: 'JetBrains Mono', monospace; font-size: 3.5rem; font-weight: 700; background: linear-gradient(90deg, #00d2ff, #7b2ff7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; }
+        .date-display { color: #aaa; font-size: 0.9rem; margin-bottom: 25px; }
+
+        h1 { font-size: 1.3rem; margin-bottom: 5px; color: #fff; }
+        .subtitle { color: #888; font-size: 0.85rem; margin-bottom: 25px; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 1rem; margin-bottom: 10px; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-scan { background: linear-gradient(135deg, #00d2ff, #7b2ff7); color: white; }
+        .btn-scan:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(123,47,247,0.4); }
+        .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .camera-box { position: relative; width: 100%; aspect-ratio: 4/3; background: #1a1a2e; border-radius: 16px; overflow: hidden; margin: 20px 0; border: 2px solid rgba(123,47,247,0.5); display: none; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+        .status-bar { padding: 12px 20px; border-radius: 12px; font-size: 0.9rem; font-weight: 600; margin: 15px 0; display: none; }
+        .status-bar.info { background: rgba(0,210,255,0.15); color: #00d2ff; display: block; }
+        .status-bar.success { background: rgba(46,204,113,0.15); color: #2ecc71; display: block; }
+        .status-bar.warning { background: rgba(241,196,15,0.15); color: #f1c40f; display: block; }
+        .status-bar.error { background: rgba(231,76,60,0.15); color: #e74c3c; display: block; }
+
+        .result-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; margin-top: 15px; display: none; }
+        .result-card.show { display: block; }
+        .result-card .profile { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; text-align: left; }
+        .result-card .profile img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #7b2ff7; }
+        .result-card .profile .name { font-weight: 700; color: #fff; font-size: 1.1rem; }
+        .result-card .profile .nip { color: #888; font-size: 0.8rem; }
+
+        .time-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .time-info .item { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; }
+        .time-info .item .label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+        .time-info .item .value { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; color: #00d2ff; font-weight: 700; }
+
+        .log-section { margin-top: 20px; text-align: left; }
+        .log-section h3 { font-size: 0.9rem; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .log-list { max-height: 200px; overflow-y: auto; }
+        .log-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-bottom: 6px; font-size: 0.85rem; }
+        .log-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .log-item .dot.in { background: #2ecc71; }
+        .log-item .dot.out { background: #e74c3c; }
+        .log-item .log-name { font-weight: 600; color: #ddd; }
+        .log-item .log-time { margin-left: auto; font-family: 'JetBrains Mono', monospace; color: #888; font-size: 0.8rem; }
+        .empty-log { color: #555; font-size: 0.85rem; text-align: center; padding: 15px; }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .scanning { animation: pulse 1.5s infinite; }
+    </style>
+</head>
+<body>
+
+<div class="terminal">
+    <div class="clock" id="clock">00:00:00</div>
+    <div class="date-display" id="dateDisplay">Memuat...</div>
+
+    <h1>🖥️ Terminal Absensi</h1>
+    <p class="subtitle">Sistem absen berbasis Face-ID — YPI Al Azhar</p>
+
+    <button class="btn btn-scan" id="btnScan" onclick="startScanner()">
+        📷 Mulai Scan Wajah
+    </button>
+
+    <div class="status-bar" id="statusBar"></div>
+
+    <div class="camera-box" id="cameraBox">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="result-card" id="resultCard">
+        <div class="profile">
+            <img id="resPhoto" src="" alt="Profile">
+            <div>
+                <div class="name" id="resName">—</div>
+                <div class="nip" id="resNip">—</div>
+            </div>
+        </div>
+        <div class="time-info">
+            <div class="item">
+                <div class="label">Datang</div>
+                <div class="value" id="resIn">—</div>
+            </div>
+            <div class="item">
+                <div class="label">Pulang</div>
+                <div class="value" id="resOut">—</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="log-section">
+        <h3>📋 Log Hari Ini</h3>
+        <div class="log-list" id="logList">
+            <div class="empty-log">Belum ada absensi hari ini.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ====================================================================
+    // KONFIGURASI
+    // ====================================================================
+    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    const SSO_API_URL = isLocal
+        ? '/api/v1/auth/verify-face'
+        : 'https://sso.donarazhar.site/api/v1/auth/verify-face';
+    const APP_ID = 'APP-ABSEN-003';
+    const MIN_HOURS_GAP = 5; // Jam minimal antara datang & pulang
+
+    let isProcessing = false;
+    let animFrameId = null;
+    let lastDetectTime = 0;
+    let modelsLoaded = false;
+
+    // ====================================================================
+    // JAM DIGITAL
+    // ====================================================================
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+        const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('dateDisplay').textContent = now.toLocaleDateString('id-ID', opts);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ====================================================================
+    // LOCAL STORAGE — Data absen hari ini
+    // ====================================================================
+    function getTodayKey() {
+        return 'absen_' + new Date().toISOString().slice(0, 10);
+    }
+    function getTodayLogs() {
+        return JSON.parse(localStorage.getItem(getTodayKey())) || [];
+    }
+    function saveTodayLogs(logs) {
+        localStorage.setItem(getTodayKey(), JSON.stringify(logs));
+    }
+
+    // Cari record karyawan hari ini
+    function findEmployeeToday(nip) {
+        const logs = getTodayLogs();
+        return logs.find(l => l.nip === nip);
+    }
+
+    // ====================================================================
+    // STATUS HELPER
+    // ====================================================================
+    function setStatus(text, type) {
+        const el = document.getElementById('statusBar');
+        el.textContent = text;
+        el.className = 'status-bar ' + type;
+    }
+
+    // ====================================================================
+    // PROSES ABSENSI — Logika 5 jam
+    // ====================================================================
+    function processAttendance(employee) {
+        const now = new Date();
+        const nowStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const record = findEmployeeToday(employee.employee_id);
+
+        if (!record) {
+            // ABSEN DATANG — Belum ada record hari ini
+            const logs = getTodayLogs();
+            logs.push({
+                nip: employee.employee_id,
+                name: employee.name,
+                photo: employee.photo_thumbnail,
+                checkIn: now.toISOString(),
+                checkInStr: nowStr,
+                checkOut: null,
+                checkOutStr: null,
+            });
+            saveTodayLogs(logs);
+            setStatus('✅ Absen DATANG berhasil dicatat!', 'success');
+            showResult(employee, nowStr, '—');
+            renderLogs();
+            return;
+        }
+
+        if (record.checkOut) {
+            // Sudah datang & pulang → tolak
+            setStatus('⚠️ Anda sudah absen datang & pulang hari ini.', 'warning');
+            showResult(employee, record.checkInStr, record.checkOutStr);
+            return;
+        }
+
+        // Cek selisih waktu
+        const checkInTime = new Date(record.checkIn);
+        const diffMs = now - checkInTime;
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        if (diffHours < MIN_HOURS_GAP) {
+            const remaining = MIN_HOURS_GAP - diffHours;
+            const remH = Math.floor(remaining);
+            const remM = Math.round((remaining - remH) * 60);
+            setStatus(`⏳ Terlalu cepat! Absen pulang bisa dilakukan ${remH} jam ${remM} menit lagi.`, 'warning');
+            showResult(employee, record.checkInStr, '—');
+            return;
+        }
+
+        // ABSEN PULANG — Sudah lewat 5 jam
+        const logs = getTodayLogs();
+        const idx = logs.findIndex(l => l.nip === employee.employee_id);
+        logs[idx].checkOut = now.toISOString();
+        logs[idx].checkOutStr = nowStr;
+        saveTodayLogs(logs);
+        setStatus('✅ Absen PULANG berhasil dicatat!', 'success');
+        showResult(employee, record.checkInStr, nowStr);
+        renderLogs();
+    }
+
+    function showResult(emp, inTime, outTime) {
+        const card = document.getElementById('resultCard');
+        card.classList.add('show');
+        document.getElementById('resPhoto').src = emp.photo_thumbnail || 'https://via.placeholder.com/55';
+        document.getElementById('resName').textContent = emp.name;
+        document.getElementById('resNip').textContent = 'NIP: ' + emp.employee_id;
+        document.getElementById('resIn').textContent = inTime;
+        document.getElementById('resOut').textContent = outTime;
+    }
+
+    // ====================================================================
+    // RENDER LOG
+    // ====================================================================
+    function renderLogs() {
+        const logs = getTodayLogs();
+        const el = document.getElementById('logList');
+        if (logs.length === 0) {
+            el.innerHTML = '<div class="empty-log">Belum ada absensi hari ini.</div>';
+            return;
+        }
+        el.innerHTML = logs.map(l => {
+            let items = `<div class="log-item"><span class="dot in"></span><span class="log-name">${l.name}</span><span class="log-time">Datang ${l.checkInStr}</span></div>`;
+            if (l.checkOut) {
+                items += `<div class="log-item"><span class="dot out"></span><span class="log-name">${l.name}</span><span class="log-time">Pulang ${l.checkOutStr}</span></div>`;
+            }
+            return items;
+        }).join('');
+    }
+    renderLogs();
+
+    // ====================================================================
+    // MODEL AI
+    // ====================================================================
+    async function initModels() {
+        if (modelsLoaded) return true;
+        try {
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+                faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models'),
+                faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+            ]);
+            modelsLoaded = true;
+            return true;
+        } catch (err) {
+            setStatus('Gagal memuat model AI.', 'error');
+            return false;
+        }
+    }
+
+    // ====================================================================
+    // SCANNER
+    // ====================================================================
+    async function startScanner() {
+        const btn = document.getElementById('btnScan');
+        btn.disabled = true;
+        document.getElementById('resultCard').classList.remove('show');
+
+        setStatus('Memuat model AI...', 'info');
+        const ready = await initModels();
+        if (!ready) { btn.disabled = false; return; }
+
+        setStatus('Membuka kamera...', 'info');
+        const cameraBox = document.getElementById('cameraBox');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        cameraBox.style.display = 'block';
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+            video.srcObject = stream;
+        } catch (e) {
+            setStatus('Gagal membuka kamera.', 'error');
+            btn.disabled = false;
+            return;
+        }
+
+        video.addEventListener('play', () => {
+            setStatus('Mencari wajah...', 'info');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const displaySize = { width: video.videoWidth, height: video.videoHeight };
+            faceapi.matchDimensions(canvas, displaySize);
+            isProcessing = false;
+
+            function detectLoop() {
+                if (!video || video.paused) { animFrameId = requestAnimationFrame(detectLoop); return; }
+                const now = performance.now();
+                if (now - lastDetectTime < 200) { animFrameId = requestAnimationFrame(detectLoop); return; }
+                lastDetectTime = now;
+                if (isProcessing) { animFrameId = requestAnimationFrame(detectLoop); return; }
+
+                faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.6 }))
+                    .withFaceLandmarks(true)
+                    .withFaceDescriptor()
+                    .then(detection => {
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        if (detection) {
+                            faceapi.draw.drawDetections(canvas, faceapi.resizeResults(detection, displaySize));
+                            if (detection.detection.score > 0.6 && !isProcessing) {
+                                isProcessing = true;
+                                setStatus('Memverifikasi ke Server SSO...', 'info');
+                                callSSO(Array.from(detection.descriptor));
+                                return; // Stop loop after detection
+                            }
+                        }
+                        animFrameId = requestAnimationFrame(detectLoop);
+                    })
+                    .catch(() => { animFrameId = requestAnimationFrame(detectLoop); });
+            }
+
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            animFrameId = requestAnimationFrame(detectLoop);
+        }, { once: true });
+    }
+
+    // ====================================================================
+    // PANGGIL SSO API
+    // ====================================================================
+    async function callSSO(descriptorArray) {
+        try {
+            const response = await fetch(SSO_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ app_id: APP_ID, face_descriptor: descriptorArray })
+            });
+            const data = await response.json();
+
+            stopCamera();
+
+            if (data.status === 'success') {
+                processAttendance(data.data);
+            } else {
+                setStatus(data.message || 'Wajah tidak dikenali.', 'error');
+            }
+        } catch (err) {
+            stopCamera();
+            setStatus('Gagal terhubung ke Server SSO.', 'error');
+        }
+    }
+
+    // ====================================================================
+    // STOP CAMERA
+    // ====================================================================
+    function stopCamera() {
+        if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+        const video = document.getElementById('video');
+        if (video && video.srcObject) {
+            video.pause();
+            video.srcObject.getTracks().forEach(t => t.stop());
+        }
+        document.getElementById('cameraBox').style.display = 'none';
+        document.getElementById('btnScan').disabled = false;
+        isProcessing = false;
+    }
+</script>
+</body>
+</html>

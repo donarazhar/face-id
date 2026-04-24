@@ -23,6 +23,11 @@ class SsoSeeder extends Seeder
                 'api_key' => 'APP-PAYROLL-002',
                 'is_active' => true,
             ],
+            [
+                'app_name' => 'Terminal Absensi',
+                'api_key' => 'APP-ABSEN-003',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($apps as $app) {
@@ -32,6 +37,6 @@ class SsoSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ 2 Aplikasi Klien SSO (Portal & Penggajian) berhasil ditambahkan.');
+        $this->command->info('✅ 3 Aplikasi Klien SSO (Portal, Penggajian & Absensi) berhasil ditambahkan.');
     }
 }
