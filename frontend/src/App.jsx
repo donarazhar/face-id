@@ -14,6 +14,11 @@ function AppContent() {
   const location = useLocation();
   const [toast, setToast] = useState(null);
   
+  // Menu states
+  const [isPegawaiMenuOpen, setIsPegawaiMenuOpen] = useState(
+    location.pathname === '/employees' || location.pathname === '/branches'
+  );
+  
   // State Autentikasi Admin Master
   const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('face_id_master_auth') === 'true');
 
@@ -94,12 +99,30 @@ function AppContent() {
           <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
             <HiOutlineTemplate className="nav-icon" /> Dashboard
           </Link>
-          <Link to="/employees" className={`nav-link ${location.pathname === '/employees' ? 'active' : ''}`}>
-            <HiOutlineUsers className="nav-icon" /> Kelola Pegawai
-          </Link>
-          <Link to="/branches" className={`nav-link ${location.pathname === '/branches' ? 'active' : ''}`}>
-            <HiOutlineOfficeBuilding className="nav-icon" /> Cabang Al Azhar
-          </Link>
+          <div>
+            <a 
+              href="#" 
+              onClick={(e) => { e.preventDefault(); setIsPegawaiMenuOpen(!isPegawaiMenuOpen); }} 
+              className={`nav-link ${(location.pathname === '/employees' || location.pathname === '/branches') ? 'active' : ''}`}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <HiOutlineUsers className="nav-icon" /> Data Master
+              </div>
+              <span style={{ fontSize: '0.8rem', transition: 'transform 0.2s', transform: isPegawaiMenuOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
+            </a>
+            
+            {isPegawaiMenuOpen && (
+              <div style={{ marginLeft: '1.5rem', marginTop: '0.2rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <Link to="/employees" className={`nav-link ${location.pathname === '/employees' ? 'active' : ''}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  👥 Kelola Pegawai
+                </Link>
+                <Link to="/branches" className={`nav-link ${location.pathname === '/branches' ? 'active' : ''}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  🏢 Cabang Al Azhar
+                </Link>
+              </div>
+            )}
+          </div>
           <Link to="/terminal" className={`nav-link ${location.pathname === '/terminal' ? 'active' : ''}`}>
             <HiOutlineCamera className="nav-icon" /> Terminal Absensi
           </Link>
