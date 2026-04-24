@@ -79,6 +79,7 @@ class AttendanceController extends Controller
     public function today(): JsonResponse
     {
         $logs = AttendanceLog::with('employee')
+            ->whereIn('method', ['face_id', 'sso_terminal_absensi'])
             ->today()
             ->orderBy('check_in_time', 'desc')
             ->get();
@@ -96,7 +97,8 @@ class AttendanceController extends Controller
      */
     public function report(Request $request): JsonResponse
     {
-        $query = AttendanceLog::with('employee.branch');
+        $query = AttendanceLog::with('employee.branch')
+            ->whereIn('method', ['face_id', 'sso_terminal_absensi']);
 
         if ($request->has('date_from')) {
             $query->whereDate('check_in_time', '>=', $request->date_from);
@@ -132,8 +134,11 @@ class AttendanceController extends Controller
     {
         $totalEmployees = \App\Models\Employee::active()->count();
         $registeredFaces = \App\Models\Employee::active()->withFace()->count();
-        $todayAttendance = AttendanceLog::today()->count();
+        $todayAttendance = AttendanceLog::whereIn('method', ['face_id', 'sso_terminal_absensi'])
+            ->today()
+            ->count();
         $todayLogs = AttendanceLog::with('employee')
+            ->whereIn('method', ['face_id', 'sso_terminal_absensi'])
             ->today()
             ->orderBy('check_in_time', 'desc')
             ->limit(5)

@@ -128,7 +128,7 @@ function AppContent() {
             <HiOutlineUsers className="nav-icon" /> Kelola Pegawai
           </Link>
           <Link to="/terminal" className={`nav-link ${location.pathname === '/terminal' ? 'active' : ''}`}>
-            <HiOutlineCamera className="nav-icon" /> Terminal Absensi
+            <HiOutlineCamera className="nav-icon" /> Log Absensi
           </Link>
           <Link to="/reports" className={`nav-link ${location.pathname === '/reports' ? 'active' : ''}`}>
             <HiOutlineDocumentReport className="nav-icon" /> Log SSO & Audit Trail
