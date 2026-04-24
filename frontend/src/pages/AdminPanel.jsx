@@ -424,7 +424,8 @@ function AdminPanel({ addToast }) {
                 <tr>
                   <th>Pegawai</th>
                   <th>NIP</th>
-                  <th>Jabatan & Cabang</th>
+                  <th>Jabatan</th>
+                  <th>Cabang</th>
                   <th>Status Wajah</th>
                   <th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
@@ -449,12 +450,14 @@ function AdminPanel({ addToast }) {
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
                       {emp.nip}
                     </td>
+                    <td>{emp.jabatan || '—'}</td>
                     <td>
-                      <div>{emp.jabatan || '—'}</div>
-                      {emp.branch && (
-                        <span className="badge" style={{ background: 'var(--bg-elevated)', color: 'var(--primary)', marginTop: '4px', display: 'inline-block', fontSize: '0.75rem' }}>
+                      {emp.branch ? (
+                        <span className="badge" style={{ background: 'var(--bg-elevated)', color: 'var(--primary)', fontSize: '0.8rem' }}>
                           🏢 {emp.branch.nama}
                         </span>
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: '0.8rem' }}>—</span>
                       )}
                     </td>
                     <td>

@@ -18,7 +18,7 @@ class EmployeeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $employees = Employee::orderBy('nama')->get();
+        $employees = Employee::with('branch')->orderBy('nama')->get();
 
         return response()->json([
             'success' => true,

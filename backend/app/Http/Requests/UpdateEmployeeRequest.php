@@ -13,8 +13,10 @@ class UpdateEmployeeRequest extends FormRequest
 
     public function rules(): array
     {
+        $employeeId = $this->route('employee') ? $this->route('employee')->id : null;
+        
         return [
-            'nip' => 'sometimes|string|max:20|unique:employees,nip,' . $this->route('employee'),
+            'nip' => 'sometimes|string|max:20|unique:employees,nip,' . $employeeId,
             'nama' => 'sometimes|string|max:100',
             'jabatan' => 'nullable|string|max:100',
             'is_active' => 'boolean',
