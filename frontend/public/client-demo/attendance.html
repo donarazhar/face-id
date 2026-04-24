@@ -241,12 +241,12 @@
         );
 
         const isWithinRadius = distance <= employee.branch.radius;
-
-        // Tampilkan Peta
-        showMap(employee, userCoords, distance, isWithinRadius);
+        let overlayMsg = '';
 
         if (!isWithinRadius) {
-            setStatus(`❌ Di luar jangkauan! Anda berjarak ${Math.round(distance)}m dari titik absensi (Maks: ${employee.branch.radius}m).`, 'error');
+            overlayMsg = `<span style="color:#e74c3c">❌ Berada di luar radius (${Math.round(distance)}m)</span><br><span style="font-size:0.75rem;color:#aaa">Maksimal: ${employee.branch.radius}m dari titik pusat.</span>`;
+            setStatus(`❌ Di luar jangkauan! Anda berjarak ${Math.round(distance)}m dari titik absensi.`, 'error');
+            showMap(employee, userCoords, overlayMsg);
             return;
         }
 
@@ -267,12 +267,16 @@
             setStatus('✅ Absen DATANG berhasil dicatat!', 'success');
             showResult(employee, nowStr, '—');
             renderLogs();
+            overlayMsg = `<span style="color:#2ecc71">✅ Berada di dalam radius</span><br><span style="font-size:0.9rem;color:#fff">Absen DATANG Berhasil!</span>`;
+            showMap(employee, userCoords, overlayMsg);
             return;
         }
 
         if (record.checkOut) {
             setStatus('⚠️ Anda sudah menyelesaikan absen hari ini.', 'warning');
             showResult(employee, record.checkInStr, record.checkOutStr);
+            overlayMsg = `<span style="color:#2ecc71">✅ Berada di dalam radius</span><br><span style="font-size:0.9rem;color:#f1c40f">⚠️ Anda sudah absen pulang hari ini.</span>`;
+            showMap(employee, userCoords, overlayMsg);
             return;
         }
 
@@ -285,6 +289,8 @@
             const remM = Math.round(((MIN_HOURS_GAP - diffHours) - remH) * 60);
             setStatus(`⏳ Anda baru bisa absen pulang ${remH} jam ${remM} menit lagi.`, 'warning');
             showResult(employee, record.checkInStr, '—');
+            overlayMsg = `<span style="color:#2ecc71">✅ Berada di dalam radius</span><br><span style="font-size:0.9rem;color:#f1c40f">⏳ Tunggu ${remH}j ${remM}m lagi untuk pulang.</span>`;
+            showMap(employee, userCoords, overlayMsg);
             return;
         }
 
@@ -297,17 +303,14 @@
         setStatus('✅ Absen PULANG berhasil dicatat!', 'success');
         showResult(employee, record.checkInStr, nowStr);
         renderLogs();
+        
+        overlayMsg = `<span style="color:#2ecc71">✅ Berada di dalam radius</span><br><span style="font-size:0.9rem;color:#fff">Absen PULANG Berhasil!</span>`;
+        showMap(employee, userCoords, overlayMsg);
     }
 
-    function showMap(employee, userCoords, distance, isWithinRadius) {
+    function showMap(employee, userCoords, overlayHtml) {
         document.getElementById('mapContainer').style.display = 'block';
-        const overlay = document.getElementById('mapStatusText');
-        
-        if (isWithinRadius) {
-            overlay.innerHTML = `<span style="color:#2ecc71">✅ Berada di dalam radius (${Math.round(distance)}m)</span>`;
-        } else {
-            overlay.innerHTML = `<span style="color:#e74c3c">❌ Berada di luar radius (${Math.round(distance)}m)</span><br><span style="font-size:0.75rem;color:#aaa">Maksimal: ${employee.branch.radius}m dari titik pusat.</span>`;
-        }
+        document.getElementById('mapStatusText').innerHTML = overlayHtml;
 
         if (!leafletMap) {
             leafletMap = L.map('map');
