@@ -18,9 +18,9 @@ function MobileQrVerify() {
     const initScanner = async () => {
       try {
         await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri('/client-demo/models'),
-          faceapi.nets.faceLandmark68TinyNet.loadFromUri('/client-demo/models'),
-          faceapi.nets.faceRecognitionNet.loadFromUri('/client-demo/models'),
+          faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+          faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models'),
+          faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
         ]);
 
         setStatus('Membuka Kamera HP...');
