@@ -169,10 +169,15 @@ function AppContent() {
   );
 }
 
+import MobileQrVerify from './pages/MobileQrVerify';
+
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <Routes>
+        <Route path="/qr-verify/:token" element={<MobileQrVerify />} />
+        <Route path="/*" element={<AppContent />} />
+      </Routes>
     </BrowserRouter>
   );
 }

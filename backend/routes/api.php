@@ -36,4 +36,9 @@ Route::prefix('v1')->group(function () {
 
     // SSO Gateway
     Route::post('auth/verify-face', [\App\Http\Controllers\Api\V1\SsoController::class, 'verifyFace']);
+    
+    // QR Login Endpoints
+    Route::post('auth/qr/generate', [\App\Http\Controllers\Api\V1\SsoController::class, 'generateQr']);
+    Route::get('auth/qr/status/{token}', [\App\Http\Controllers\Api\V1\SsoController::class, 'checkQrStatus']);
+    Route::post('auth/qr/verify', [\App\Http\Controllers\Api\V1\SsoController::class, 'verifyQrFace']);
 });

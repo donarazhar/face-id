@@ -6,6 +6,7 @@
     <title>Portal Berita Internal</title>
     <!-- Load face-api.js dari CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
@@ -52,9 +53,25 @@
         <button class="btn btn-sso" onclick="showPage('loginAdminPage')">
             📷 Login sebagai Admin (Face-ID)
         </button>
-        <button class="btn btn-outline" onclick="showPage('loginSuperadminPage')">
+        <button class="btn btn-outline" onclick="showPage('qrLoginPage')">
+            📱 Kamera Rusak? Login via HP
+        </button>
+        <button class="btn btn-outline" style="margin-top: 10px;" onclick="showPage('loginSuperadminPage')">
             ⚙️ Login Superadmin (Manual)
         </button>
+    </div>
+
+    <!-- 1.5 HALAMAN LOGIN QR -->
+    <div class="container hidden text-center" id="qrLoginPage">
+        <h2>Login via HP (Handoff)</h2>
+        <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 0.9rem;">Pindai QR Code di bawah ini menggunakan kamera HP Anda.</p>
+        
+        <div id="qrCodeContainer" style="display: flex; justify-content: center; margin-bottom: 20px; padding: 20px; background: white; border-radius: 10px; border: 1px solid #ccc;"></div>
+        
+        <div id="qrLoginStatus" class="status-badge" style="background: #3498db;">Menunggu pemindaian...</div>
+        
+        <br>
+        <button class="btn btn-outline" onclick="stopQrPolling(); showPage('selectionPage')">Batal</button>
     </div>
 
     <!-- 2. HALAMAN LOGIN SUPERADMIN -->
@@ -145,10 +162,11 @@
         // ====================================================================
         // KONFIGURASI — Otomatis pilih URL lokal atau production
         // ====================================================================
-        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-        const SSO_API_URL = isLocal
-            ? '/api/v1/auth/verify-face'
-            : 'https://sso.donarazhar.site/api/v1/auth/verify-face';
+        const isLocal = !location.hostname.includes('donarazhar.site');
+        const BASE_API_URL = isLocal ? '/api/v1' : 'https://sso.donarazhar.site/api/v1';
+        const SSO_API_URL = `${BASE_API_URL}/auth/verify-face`;
+        const QR_GENERATE_URL = `${BASE_API_URL}/auth/qr/generate`;
+        const QR_STATUS_URL = `${BASE_API_URL}/auth/qr/status`;
         const APP_ID = 'APP-PORTAL-001'; 
         
         let localAdmins = JSON.parse(localStorage.getItem('portal_admins')) || []; 
@@ -165,6 +183,8 @@
 
             if (pageId === 'loginAdminPage') {
                 startScanner('login');
+            } else if (pageId === 'qrLoginPage') {
+                startQrLogin();
             }
         }
 
@@ -372,6 +392,100 @@
             document.getElementById('cameraBoxLogin').style.display = 'none';
             document.getElementById('cameraBoxRegister').style.display = 'none';
             isProcessing = false;
+        }
+
+        // ====================================================================
+        // MOBILE HANDOFF (QR LOGIN) LOGIC
+        // ====================================================================
+        let qrPollingInterval = null;
+
+        async function startQrLogin() {
+            const container = document.getElementById('qrCodeContainer');
+            const statusEl = document.getElementById('qrLoginStatus');
+            container.innerHTML = '';
+            statusEl.innerText = 'Menghasilkan QR Code...';
+            statusEl.style.background = '#f1c40f'; // yellow
+
+            try {
+                const response = await fetch(QR_GENERATE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app_id: APP_ID })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    const token = data.data.token;
+                    // Gunakan origin saat ini untuk link Mobile Verify
+                    const verifyUrl = `${window.location.origin}/qr-verify/${token}`;
+                    
+                    new QRCode(container, {
+                        text: verifyUrl,
+                        width: 200,
+                        height: 200,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+
+                    statusEl.innerText = 'Silakan pindai QR Code dengan HP Anda';
+                    statusEl.style.background = '#3498db'; // blue
+
+                    // Start polling
+                    qrPollingInterval = setInterval(() => checkQrStatus(token), 2000);
+                } else {
+                    statusEl.innerText = 'Gagal membuat sesi QR.';
+                    statusEl.style.background = '#e74c3c'; // red
+                }
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = 'Koneksi ke server gagal.';
+                statusEl.style.background = '#e74c3c';
+            }
+        }
+
+        async function checkQrStatus(token) {
+            try {
+                const response = await fetch(`${QR_STATUS_URL}/${token}`);
+                const data = await response.json();
+
+                const statusEl = document.getElementById('qrLoginStatus');
+
+                if (data.status === 'success') {
+                    stopQrPolling();
+                    const employee = data.data;
+                    
+                    const hasAccess = localAdmins.find(a => a.nip === employee.employee_id);
+                    if (hasAccess) {
+                        statusEl.innerText = `Login berhasil! Mengalihkan...`;
+                        statusEl.style.background = '#2ecc71'; // green
+                        
+                        setTimeout(() => {
+                            showPage('dashboardAdminPage');
+                            document.getElementById('adminPhoto').src = employee.photo_thumbnail || 'https://via.placeholder.com/60';
+                            document.getElementById('adminName').innerText = employee.name;
+                            document.getElementById('adminNip').innerText = `NIP: ${employee.employee_id}`;
+                        }, 1000);
+                    } else {
+                        statusEl.innerText = `Akses Ditolak! ${employee.name} bukan Admin Portal.`;
+                        statusEl.style.background = '#e74c3c'; // red
+                    }
+                } else if (data.status === 'failed' || data.status === 'expired') {
+                    stopQrPolling();
+                    statusEl.innerText = 'QR Code kedaluwarsa. Silakan ulang.';
+                    statusEl.style.background = '#e74c3c';
+                    document.getElementById('qrCodeContainer').innerHTML = '<p style="color:#e74c3c;font-weight:bold;">EXPIRED</p>';
+                }
+            } catch (err) {
+                console.error("Polling error:", err);
+            }
+        }
+
+        function stopQrPolling() {
+            if (qrPollingInterval) {
+                clearInterval(qrPollingInterval);
+                qrPollingInterval = null;
+            }
         }
     </script>
 </body>
