@@ -6,8 +6,9 @@ import PresenceTerminal from './pages/PresenceTerminal';
 import Reports from './pages/Reports';
 import ClientDemo from './pages/ClientDemo';
 import Documentation from './pages/Documentation';
+import BranchPanel from './pages/BranchPanel';
 import Toast from './components/ui/Toast';
-import { HiOutlineTemplate, HiOutlineUsers, HiOutlineCamera, HiOutlineDocumentReport, HiOutlineLogout, HiOutlineDesktopComputer, HiOutlineBookOpen } from 'react-icons/hi';
+import { HiOutlineTemplate, HiOutlineUsers, HiOutlineCamera, HiOutlineDocumentReport, HiOutlineLogout, HiOutlineDesktopComputer, HiOutlineBookOpen, HiOutlineOfficeBuilding } from 'react-icons/hi';
 
 function AppContent() {
   const location = useLocation();
@@ -96,6 +97,9 @@ function AppContent() {
           <Link to="/employees" className={`nav-link ${location.pathname === '/employees' ? 'active' : ''}`}>
             <HiOutlineUsers className="nav-icon" /> Kelola Pegawai
           </Link>
+          <Link to="/branches" className={`nav-link ${location.pathname === '/branches' ? 'active' : ''}`}>
+            <HiOutlineOfficeBuilding className="nav-icon" /> Cabang Al Azhar
+          </Link>
           <Link to="/terminal" className={`nav-link ${location.pathname === '/terminal' ? 'active' : ''}`}>
             <HiOutlineCamera className="nav-icon" /> Terminal Absensi
           </Link>
@@ -122,6 +126,7 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Dashboard addToast={addToast} />} />
             <Route path="/employees" element={<AdminPanel addToast={addToast} />} />
+            <Route path="/branches" element={<BranchPanel addToast={addToast} />} />
             <Route path="/terminal" element={<PresenceTerminal addToast={addToast} />} />
             <Route path="/reports" element={<Reports addToast={addToast} />} />
             <Route path="/clients" element={<ClientDemo />} />

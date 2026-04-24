@@ -79,6 +79,7 @@ class SsoController extends Controller
                 'name' => $employee->nama,
                 'jabatan' => $employee->jabatan,
                 'photo_thumbnail' => $employee->photo_thumbnail,
+                'branch' => $employee->branch,
                 'confidence' => $match['confidence'],
                 'access_token' => $token
             ],

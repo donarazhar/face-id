@@ -17,6 +17,8 @@ class UpdateEmployeeRequest extends FormRequest
             'nip' => 'sometimes|string|max:20|unique:employees,nip,' . $this->route('employee'),
             'nama' => 'sometimes|string|max:100',
             'jabatan' => 'nullable|string|max:100',
+            'is_active' => 'boolean',
+            'branch_id' => 'nullable|exists:branches,id',
         ];
     }
 }

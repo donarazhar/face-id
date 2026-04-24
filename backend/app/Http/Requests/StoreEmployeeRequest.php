@@ -17,6 +17,8 @@ class StoreEmployeeRequest extends FormRequest
             'nip' => 'required|string|max:20|unique:employees,nip',
             'nama' => 'required|string|max:100',
             'jabatan' => 'nullable|string|max:100',
+            'is_active' => 'boolean',
+            'branch_id' => 'nullable|exists:branches,id',
         ];
     }
 

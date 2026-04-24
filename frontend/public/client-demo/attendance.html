@@ -164,13 +164,71 @@
     }
 
     // ====================================================================
-    // PROSES ABSENSI — Logika 5 jam
+    // GEOLOCATION & DISTANCE CALCULATION
     // ====================================================================
-    function processAttendance(employee) {
+    function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Radius bumi dalam meter
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // Hasil dalam meter
+    }
+
+    function getUserLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error("Browser tidak mendukung geolokasi"));
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                pos => resolve(pos.coords),
+                err => reject(err),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        });
+    }
+
+    // ====================================================================
+    // PROSES ABSENSI — Logika 5 jam & Validasi Lokasi
+    // ====================================================================
+    async function processAttendance(employee) {
         const now = new Date();
         const nowStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
         const record = findEmployeeToday(employee.employee_id);
 
+        // 1. Validasi Cabang & Lokasi
+        if (!employee.branch) {
+            setStatus('❌ Gagal: Anda belum ditugaskan di cabang manapun.', 'error');
+            return;
+        }
+
+        setStatus('📍 Memeriksa lokasi Anda...', 'info');
+        let userCoords;
+        try {
+            userCoords = await getUserLocation();
+        } catch (e) {
+            setStatus('❌ Gagal mendapatkan lokasi GPS Anda.', 'error');
+            return;
+        }
+
+        const distance = getDistance(
+            userCoords.latitude, userCoords.longitude,
+            employee.branch.latitude, employee.branch.longitude
+        );
+
+        if (distance > employee.branch.radius) {
+            setStatus(`❌ Di luar jangkauan! Anda berjarak ${Math.round(distance)}m dari ${employee.branch.nama} (Maks: ${employee.branch.radius}m).`, 'error');
+            return;
+        }
+
+        // 2. Logika 5 Jam
         if (!record) {
             // ABSEN DATANG — Belum ada record hari ini
             const logs = getTodayLogs();

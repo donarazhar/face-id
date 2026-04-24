@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\EmployeeController;
+use App\Http\Controllers\Api\V1\BranchController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->group(function () {
+    // Branches Management
+    Route::apiResource('branches', BranchController::class);
+
     // Employee Management
     Route::apiResource('employees', EmployeeController::class);
     Route::post('employees/{employee}/enroll-face', [EmployeeController::class, 'enrollFace']);

@@ -21,6 +21,8 @@ class EmployeeResource extends JsonResource
             'face_registered_at' => $this->face_registered_at?->toIso8601String(),
             'photo_thumbnail' => $this->photo_thumbnail,
             'is_active' => $this->is_active,
+            'branch_id' => $this->branch_id,
+            'branch' => $this->branch,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

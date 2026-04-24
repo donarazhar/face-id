@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { employeeApi } from '../services/apiService';
+import { employeeApi, branchApi } from '../services/apiService';
 import { loadModels, loadPreciseModels, detectPrecise, detectAndDescribe, drawDetection, captureThumb, areModelsLoaded, arePreciseModelsLoaded, validateFaceQuality } from '../services/faceApiService';
 import { HiOutlinePlus, HiOutlineCamera, HiOutlineTrash, HiOutlinePencil, HiOutlineX, HiOutlineRefresh } from 'react-icons/hi';
 
 function AdminPanel({ addToast }) {
   const [employees, setEmployees] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ nip: '', nama: '', jabatan: '' });
+  const [formData, setFormData] = useState({ nip: '', nama: '', jabatan: '', branch_id: '' });
   const [formErrors, setFormErrors] = useState({});
   const [enrollingId, setEnrollingId] = useState(null);
   const [modelsReady, setModelsReady] = useState(false);
@@ -25,6 +26,7 @@ function AdminPanel({ addToast }) {
 
   useEffect(() => {
     loadEmployees();
+    loadBranches();
     initModels();
     return () => stopCamera();
   }, []);
@@ -51,14 +53,23 @@ function AdminPanel({ addToast }) {
     }
   };
 
+  const loadBranches = async () => {
+    try {
+      const res = await branchApi.getAll();
+      setBranches(res.data.data);
+    } catch (err) {
+      console.error('Failed to load branches');
+    }
+  };
+
   // ---- Form handlers ----
   const openForm = (employee = null) => {
     if (employee) {
       setEditingId(employee.id);
-      setFormData({ nip: employee.nip, nama: employee.nama, jabatan: employee.jabatan || '' });
+      setFormData({ nip: employee.nip, nama: employee.nama, jabatan: employee.jabatan || '', branch_id: employee.branch_id || '' });
     } else {
       setEditingId(null);
-      setFormData({ nip: '', nama: '', jabatan: '' });
+      setFormData({ nip: '', nama: '', jabatan: '', branch_id: '' });
     }
     setFormErrors({});
     setShowForm(true);
@@ -363,6 +374,21 @@ function AdminPanel({ addToast }) {
                 />
               </div>
 
+              <div className="form-group">
+                <label className="form-label">Cabang / Lokasi Tugas</label>
+                <select
+                  className="form-input"
+                  value={formData.branch_id}
+                  onChange={(e) => setFormData({ ...formData, branch_id: e.target.value })}
+                >
+                  <option value="">-- Pilih Cabang --</option>
+                  {branches.map(branch => (
+                    <option key={branch.id} value={branch.id}>{branch.nama}</option>
+                  ))}
+                </select>
+                {formErrors.branch_id && <div className="form-error">{formErrors.branch_id[0]}</div>}
+              </div>
+
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
                   Batal
@@ -392,7 +418,7 @@ function AdminPanel({ addToast }) {
                 <tr>
                   <th>Pegawai</th>
                   <th>NIP</th>
-                  <th>Jabatan</th>
+                  <th>Jabatan & Cabang</th>
                   <th>Status Wajah</th>
                   <th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
@@ -417,7 +443,14 @@ function AdminPanel({ addToast }) {
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
                       {emp.nip}
                     </td>
-                    <td>{emp.jabatan || '—'}</td>
+                    <td>
+                      <div>{emp.jabatan || '—'}</div>
+                      {emp.branch && (
+                        <span className="badge" style={{ background: 'var(--bg-elevated)', color: 'var(--primary)', marginTop: '4px', display: 'inline-block', fontSize: '0.75rem' }}>
+                          🏢 {emp.branch.nama}
+                        </span>
+                      )}
+                    </td>
                     <td>
                       {emp.has_face ? (
                         <span className="badge badge-success badge-dot">Terdaftar</span>
