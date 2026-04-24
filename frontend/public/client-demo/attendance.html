@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terminal Absensi — Face-ID</title>
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
@@ -31,6 +33,12 @@
         .status-bar.success { background: rgba(46,204,113,0.15); color: #2ecc71; display: block; }
         .status-bar.warning { background: rgba(241,196,15,0.15); color: #f1c40f; display: block; }
         .status-bar.error { background: rgba(231,76,60,0.15); color: #e74c3c; display: block; }
+
+        .map-container { position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 16px; overflow: hidden; margin: 15px 0; border: 2px solid rgba(123,47,247,0.5); display: none; }
+        #map { width: 100%; height: 100%; z-index: 1; }
+        .map-overlay { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 12px; z-index: 1000; text-align: center; width: 90%; backdrop-filter: blur(5px); }
+        .btn-close-map { background: transparent; border: 1px solid #aaa; color: #ccc; width: auto; padding: 6px 15px; margin-top: 10px; font-size: 0.8rem; border-radius: 20px; }
+        .btn-close-map:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
         .result-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; margin-top: 15px; display: none; }
         .result-card.show { display: block; }
@@ -79,6 +87,14 @@
         <canvas id="canvas"></canvas>
     </div>
 
+    <div class="map-container" id="mapContainer">
+        <div id="map"></div>
+        <div class="map-overlay" id="mapOverlay">
+            <div id="mapStatusText" style="font-weight: 600; font-size: 0.9rem;"></div>
+            <button class="btn btn-close-map" onclick="closeMap()">Tutup Peta</button>
+        </div>
+    </div>
+
     <div class="result-card" id="resultCard">
         <div class="profile">
             <img id="resPhoto" src="" alt="Profile">
@@ -122,6 +138,7 @@
     let animFrameId = null;
     let lastDetectTime = 0;
     let modelsLoaded = false;
+    let leafletMap = null;
 
     // ====================================================================
     // JAM DIGITAL
@@ -203,18 +220,18 @@
         const nowStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
         const record = findEmployeeToday(employee.employee_id);
 
-        // 1. Validasi Cabang & Lokasi
+        // 1. Validasi Cabang
         if (!employee.branch) {
             setStatus('❌ Gagal: Anda belum ditugaskan di cabang manapun.', 'error');
             return;
         }
 
-        setStatus('📍 Memeriksa lokasi Anda...', 'info');
+        setStatus('📍 Memeriksa lokasi Anda dari GPS...', 'info');
         let userCoords;
         try {
             userCoords = await getUserLocation();
         } catch (e) {
-            setStatus('❌ Gagal mendapatkan lokasi GPS Anda.', 'error');
+            setStatus('❌ Gagal mendapatkan lokasi GPS Anda. Pastikan Izin Lokasi aktif.', 'error');
             return;
         }
 
@@ -223,14 +240,19 @@
             employee.branch.latitude, employee.branch.longitude
         );
 
-        if (distance > employee.branch.radius) {
-            setStatus(`❌ Di luar jangkauan! Anda berjarak ${Math.round(distance)}m dari ${employee.branch.nama} (Maks: ${employee.branch.radius}m).`, 'error');
+        const isWithinRadius = distance <= employee.branch.radius;
+
+        // Tampilkan Peta
+        showMap(employee, userCoords, distance, isWithinRadius);
+
+        if (!isWithinRadius) {
+            setStatus(`❌ Di luar jangkauan! Anda berjarak ${Math.round(distance)}m dari titik absensi (Maks: ${employee.branch.radius}m).`, 'error');
             return;
         }
 
-        // 2. Logika 5 Jam
+        // 2. Validasi Jarak Waktu (5 Jam)
         if (!record) {
-            // ABSEN DATANG — Belum ada record hari ini
+            // ABSEN DATANG
             const logs = getTodayLogs();
             logs.push({
                 nip: employee.employee_id,
@@ -249,27 +271,24 @@
         }
 
         if (record.checkOut) {
-            // Sudah datang & pulang → tolak
-            setStatus('⚠️ Anda sudah absen datang & pulang hari ini.', 'warning');
+            setStatus('⚠️ Anda sudah menyelesaikan absen hari ini.', 'warning');
             showResult(employee, record.checkInStr, record.checkOutStr);
             return;
         }
 
-        // Cek selisih waktu
         const checkInTime = new Date(record.checkIn);
         const diffMs = now - checkInTime;
         const diffHours = diffMs / (1000 * 60 * 60);
 
         if (diffHours < MIN_HOURS_GAP) {
-            const remaining = MIN_HOURS_GAP - diffHours;
-            const remH = Math.floor(remaining);
-            const remM = Math.round((remaining - remH) * 60);
-            setStatus(`⏳ Terlalu cepat! Absen pulang bisa dilakukan ${remH} jam ${remM} menit lagi.`, 'warning');
+            const remH = Math.floor(MIN_HOURS_GAP - diffHours);
+            const remM = Math.round(((MIN_HOURS_GAP - diffHours) - remH) * 60);
+            setStatus(`⏳ Anda baru bisa absen pulang ${remH} jam ${remM} menit lagi.`, 'warning');
             showResult(employee, record.checkInStr, '—');
             return;
         }
 
-        // ABSEN PULANG — Sudah lewat 5 jam
+        // ABSEN PULANG
         const logs = getTodayLogs();
         const idx = logs.findIndex(l => l.nip === employee.employee_id);
         logs[idx].checkOut = now.toISOString();
@@ -278,6 +297,56 @@
         setStatus('✅ Absen PULANG berhasil dicatat!', 'success');
         showResult(employee, record.checkInStr, nowStr);
         renderLogs();
+    }
+
+    function showMap(employee, userCoords, distance, isWithinRadius) {
+        document.getElementById('mapContainer').style.display = 'block';
+        const overlay = document.getElementById('mapStatusText');
+        
+        if (isWithinRadius) {
+            overlay.innerHTML = `<span style="color:#2ecc71">✅ Berada di dalam radius (${Math.round(distance)}m)</span>`;
+        } else {
+            overlay.innerHTML = `<span style="color:#e74c3c">❌ Berada di luar radius (${Math.round(distance)}m)</span><br><span style="font-size:0.75rem;color:#aaa">Maksimal: ${employee.branch.radius}m dari titik pusat.</span>`;
+        }
+
+        if (!leafletMap) {
+            leafletMap = L.map('map');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(leafletMap);
+        }
+
+        // Bersihkan layer sebelumnya (jika ada absen berturut-turut)
+        leafletMap.eachLayer((layer) => {
+            if (layer instanceof L.Marker || layer instanceof L.Circle) {
+                leafletMap.removeLayer(layer);
+            }
+        });
+
+        const officeLoc = [employee.branch.latitude, employee.branch.longitude];
+        const officeCircle = L.circle(officeLoc, {
+            color: '#3498db',
+            fillColor: '#3498db',
+            fillOpacity: 0.2,
+            radius: employee.branch.radius
+        }).addTo(leafletMap);
+
+        const userLoc = [userCoords.latitude, userCoords.longitude];
+        const userMarker = L.marker(userLoc).addTo(leafletMap);
+        userMarker.bindPopup("<b>Posisi Anda</b>").openPopup();
+
+        // Pusatkan peta ke 2 titik (kantor & user)
+        const group = new L.featureGroup([officeCircle, userMarker]);
+        leafletMap.fitBounds(group.getBounds(), { padding: [30, 30] });
+        
+        // Memaksa Leaflet render ulang karena div display:none sebelumnya
+        setTimeout(() => leafletMap.invalidateSize(), 300);
+    }
+
+    function closeMap() {
+        document.getElementById('mapContainer').style.display = 'none';
+        document.getElementById('resultCard').classList.remove('show');
+        document.getElementById('statusBar').style.display = 'none';
     }
 
     function showResult(emp, inTime, outTime) {
@@ -336,6 +405,7 @@
         const btn = document.getElementById('btnScan');
         btn.disabled = true;
         document.getElementById('resultCard').classList.remove('show');
+        document.getElementById('mapContainer').style.display = 'none';
 
         setStatus('Memuat model AI...', 'info');
         const ready = await initModels();
