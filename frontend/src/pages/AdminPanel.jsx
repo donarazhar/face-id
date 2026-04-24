@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { employeeApi, branchApi } from '../services/apiService';
+import { employeeApi, branchApi, positionApi } from '../services/apiService';
 import { loadModels, loadPreciseModels, detectPrecise, detectAndDescribe, drawDetection, captureThumb, areModelsLoaded, arePreciseModelsLoaded, validateFaceQuality } from '../services/faceApiService';
 import { HiOutlinePlus, HiOutlineCamera, HiOutlineTrash, HiOutlinePencil, HiOutlineX, HiOutlineRefresh } from 'react-icons/hi';
 
 function AdminPanel({ addToast }) {
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -27,6 +28,7 @@ function AdminPanel({ addToast }) {
   useEffect(() => {
     loadEmployees();
     loadBranches();
+    loadPositions();
     initModels();
     return () => stopCamera();
   }, []);
@@ -59,6 +61,15 @@ function AdminPanel({ addToast }) {
       setBranches(res.data.data);
     } catch (err) {
       console.error('Failed to load branches');
+    }
+  };
+
+  const loadPositions = async () => {
+    try {
+      const res = await positionApi.getAll();
+      setPositions(res.data.data);
+    } catch (err) {
+      console.error('Failed to load positions');
     }
   };
 
@@ -370,14 +381,17 @@ function AdminPanel({ addToast }) {
 
               <div className="form-group">
                 <label className="form-label">Jabatan</label>
-                <input
-                  id="input-jabatan"
-                  type="text"
+                <select
                   className="form-input"
-                  placeholder="Contoh: Guru Matematika"
                   value={formData.jabatan}
                   onChange={(e) => setFormData({ ...formData, jabatan: e.target.value })}
-                />
+                >
+                  <option value="">-- Pilih Jabatan --</option>
+                  {positions.map(position => (
+                    <option key={position.id} value={position.nama}>{position.nama}</option>
+                  ))}
+                </select>
+                {formErrors.jabatan && <div className="form-error">{formErrors.jabatan[0]}</div>}
               </div>
 
               <div className="form-group">

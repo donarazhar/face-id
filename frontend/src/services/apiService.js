@@ -35,6 +35,15 @@ export const branchApi = {
   delete: (id) => api.delete(`/branches/${id}`),
 };
 
+// Position endpoints
+export const positionApi = {
+  getAll: () => api.get('/positions'),
+  getOne: (id) => api.get(`/positions/${id}`),
+  create: (data) => api.post('/positions', data),
+  update: (id, data) => api.put(`/positions/${id}`, data),
+  delete: (id) => api.delete(`/positions/${id}`),
+};
+
 // Attendance endpoints
 export const attendanceApi = {
   recognize: (data) => api.post('/attendance/recognize', data),

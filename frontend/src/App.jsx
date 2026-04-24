@@ -7,6 +7,7 @@ import Reports from './pages/Reports';
 import ClientDemo from './pages/ClientDemo';
 import Documentation from './pages/Documentation';
 import BranchPanel from './pages/BranchPanel';
+import PositionPanel from './pages/PositionPanel';
 import Toast from './components/ui/Toast';
 import { HiOutlineTemplate, HiOutlineUsers, HiOutlineCamera, HiOutlineDocumentReport, HiOutlineLogout, HiOutlineDesktopComputer, HiOutlineBookOpen, HiOutlineOfficeBuilding } from 'react-icons/hi';
 
@@ -15,8 +16,8 @@ function AppContent() {
   const [toast, setToast] = useState(null);
   
   // Menu states
-  const [isPegawaiMenuOpen, setIsPegawaiMenuOpen] = useState(
-    location.pathname === '/employees' || location.pathname === '/branches'
+  const [isDataMasterOpen, setIsDataMasterOpen] = useState(
+    location.pathname === '/branches' || location.pathname === '/positions'
   );
   
   // State Autentikasi Admin Master
@@ -99,26 +100,29 @@ function AppContent() {
           <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
             <HiOutlineTemplate className="nav-icon" /> Dashboard
           </Link>
+          <Link to="/employees" className={`nav-link ${location.pathname === '/employees' ? 'active' : ''}`}>
+            <HiOutlineUsers className="nav-icon" /> Kelola Pegawai
+          </Link>
           <div>
             <a 
               href="#" 
-              onClick={(e) => { e.preventDefault(); setIsPegawaiMenuOpen(!isPegawaiMenuOpen); }} 
-              className={`nav-link ${(location.pathname === '/employees' || location.pathname === '/branches') ? 'active' : ''}`}
+              onClick={(e) => { e.preventDefault(); setIsDataMasterOpen(!isDataMasterOpen); }} 
+              className={`nav-link ${(location.pathname === '/branches' || location.pathname === '/positions') ? 'active' : ''}`}
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <HiOutlineUsers className="nav-icon" /> Data Pegawai
+                <HiOutlineTemplate className="nav-icon" /> Data Master
               </div>
-              <span style={{ fontSize: '0.8rem', transition: 'transform 0.2s', transform: isPegawaiMenuOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
+              <span style={{ fontSize: '0.8rem', transition: 'transform 0.2s', transform: isDataMasterOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
             </a>
             
-            {isPegawaiMenuOpen && (
+            {isDataMasterOpen && (
               <div style={{ marginLeft: '1.5rem', marginTop: '0.2rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <Link to="/employees" className={`nav-link ${location.pathname === '/employees' ? 'active' : ''}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                  👥 Kelola Pegawai
-                </Link>
                 <Link to="/branches" className={`nav-link ${location.pathname === '/branches' ? 'active' : ''}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
                   🏢 Cabang Al Azhar
+                </Link>
+                <Link to="/positions" className={`nav-link ${location.pathname === '/positions' ? 'active' : ''}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  💼 Jabatan
                 </Link>
               </div>
             )}
@@ -150,6 +154,7 @@ function AppContent() {
             <Route path="/" element={<Dashboard addToast={addToast} />} />
             <Route path="/employees" element={<AdminPanel addToast={addToast} />} />
             <Route path="/branches" element={<BranchPanel addToast={addToast} />} />
+            <Route path="/positions" element={<PositionPanel addToast={addToast} />} />
             <Route path="/terminal" element={<PresenceTerminal addToast={addToast} />} />
             <Route path="/reports" element={<Reports addToast={addToast} />} />
             <Route path="/clients" element={<ClientDemo />} />
