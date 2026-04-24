@@ -103,23 +103,47 @@ function MobileQrVerify() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto', textAlign: 'center', fontFamily: "'Poppins', sans-serif" }}>
-      <h2 style={{ color: '#2c3e50', marginBottom: '10px' }}>Face-ID Mobile</h2>
-      <p style={{ color: '#7f8c8d', marginBottom: '20px', fontSize: '0.9rem' }}>Posisikan wajah Anda di dalam kamera.</p>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      minHeight: '100vh', 
+      background: '#f0f4f8', 
+      fontFamily: "'Poppins', sans-serif",
+      padding: '20px',
+      boxSizing: 'border-box'
+    }}>
+      
+      <div style={{ textAlign: 'center', marginBottom: '20px', paddingTop: '10px' }}>
+        <h2 style={{ color: '#2c3e50', margin: '0 0 5px 0', fontSize: '1.5rem' }}>Face-ID Mobile</h2>
+        <p style={{ color: '#7f8c8d', margin: 0, fontSize: '0.9rem' }}>Posisikan wajah Anda di dalam area kamera.</p>
+      </div>
       
       <div style={{
         padding: '15px', 
-        borderRadius: '8px', 
+        borderRadius: '12px', 
         marginBottom: '20px', 
-        background: isSuccess ? '#d4edda' : isError ? '#f8d7da' : '#e2e3e5',
-        color: isSuccess ? '#155724' : isError ? '#721c24' : '#383d41',
-        fontWeight: 'bold'
+        background: isSuccess ? '#d4edda' : isError ? '#f8d7da' : '#fff',
+        color: isSuccess ? '#155724' : isError ? '#721c24' : '#2c3e50',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+        border: `1px solid ${isSuccess ? '#c3e6cb' : isError ? '#f5c6cb' : '#e2e8f0'}`
       }}>
         {status}
       </div>
 
       {!isSuccess && !isError && (
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', borderRadius: '12px', overflow: 'hidden', border: '3px solid #3498db' }}>
+        <div style={{ 
+          position: 'relative', 
+          width: '100%', 
+          flex: 1, 
+          maxHeight: '65vh',
+          borderRadius: '20px', 
+          overflow: 'hidden', 
+          boxShadow: '0 10px 25px rgba(52, 152, 219, 0.3)',
+          border: '4px solid #3498db',
+          background: '#000'
+        }}>
           <video 
             ref={videoRef} 
             onPlay={handleVideoPlay}
@@ -129,8 +153,21 @@ function MobileQrVerify() {
             style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
           />
           <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
+          
+          {/* Overlay Scanner UI */}
+          <div style={{
+            position: 'absolute',
+            top: '15%', left: '15%', right: '15%', bottom: '15%',
+            border: '2px dashed rgba(255, 255, 255, 0.5)',
+            borderRadius: '50%',
+            pointerEvents: 'none'
+          }}></div>
         </div>
       )}
+      
+      <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '20px' }}>
+        <p style={{ color: '#bdc3c7', fontSize: '0.75rem' }}>YPI Al Azhar &copy; 2026</p>
+      </div>
     </div>
   );
 }
