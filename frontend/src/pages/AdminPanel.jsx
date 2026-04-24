@@ -78,12 +78,18 @@ function AdminPanel({ addToast }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormErrors({});
+    
+    const dataToSend = { ...formData };
+    if (dataToSend.branch_id === '') {
+      dataToSend.branch_id = null;
+    }
+
     try {
       if (editingId) {
-        await employeeApi.update(editingId, formData);
+        await employeeApi.update(editingId, dataToSend);
         addToast('Data pegawai berhasil diperbarui.', 'success');
       } else {
-        await employeeApi.create(formData);
+        await employeeApi.create(dataToSend);
         addToast('Pegawai baru berhasil ditambahkan.', 'success');
       }
       setShowForm(false);
