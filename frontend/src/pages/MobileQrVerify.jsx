@@ -43,6 +43,9 @@ function MobileQrVerify() {
     };
   }, []);
 
+  const isProcessingRef = useRef(false);
+  const intervalRef = useRef(null);
+
   const handleVideoPlay = () => {
     if (isSuccess || isError) return;
     
@@ -51,9 +54,10 @@ function MobileQrVerify() {
     const displaySize = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
     faceapi.matchDimensions(canvasRef.current, displaySize);
 
-    const interval = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.paused || isSuccess || isError) {
-        clearInterval(interval);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.paused || isProcessingRef.current) {
         return;
       }
 
@@ -61,8 +65,9 @@ function MobileQrVerify() {
         .withFaceLandmarks(true)
         .withFaceDescriptor();
 
-      if (detection && detection.detection.score > 0.6) {
-        clearInterval(interval);
+      if (detection && detection.detection.score > 0.6 && !isProcessingRef.current) {
+        isProcessingRef.current = true;
+        clearInterval(intervalRef.current);
         verifyFace(Array.from(detection.descriptor));
       }
     }, 500);
