@@ -313,7 +313,8 @@
         document.getElementById('mapStatusText').innerHTML = overlayHtml;
 
         if (!leafletMap) {
-            leafletMap = L.map('map');
+            // Inisialisasi peta dengan titik tengah awal wajib ada
+            leafletMap = L.map('map').setView([employee.branch.latitude, employee.branch.longitude], 15);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(leafletMap);
@@ -338,12 +339,13 @@
         const userMarker = L.marker(userLoc).addTo(leafletMap);
         userMarker.bindPopup("<b>Posisi Anda</b>").openPopup();
 
-        // Pusatkan peta ke 2 titik (kantor & user)
+        // Pusatkan peta ke 2 titik secara asinkron agar DOM ter-render sempurna
         const group = new L.featureGroup([officeCircle, userMarker]);
-        leafletMap.fitBounds(group.getBounds(), { padding: [30, 30] });
         
-        // Memaksa Leaflet render ulang karena div display:none sebelumnya
-        setTimeout(() => leafletMap.invalidateSize(), 300);
+        setTimeout(() => {
+            leafletMap.invalidateSize();
+            leafletMap.fitBounds(group.getBounds(), { padding: [30, 30] });
+        }, 200);
     }
 
     function closeMap() {
