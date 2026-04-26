@@ -1085,31 +1085,43 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 
-  /* Table improvements */
+  /* Table improvements — no horizontal scroll */
   .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: visible;
     border-radius: var(--radius-md);
   }
 
   .table-container table {
-    min-width: 600px;
+    width: 100%;
+    table-layout: auto;
+  }
+
+  /* Hide non-essential columns on mobile */
+  .hide-mobile {
+    display: none !important;
   }
 
   thead th {
-    padding: var(--space-sm) var(--space-md);
-    font-size: 0.7rem;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.68rem;
   }
 
   tbody td {
-    padding: var(--space-sm) var(--space-md);
-    font-size: 0.8rem;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.78rem;
+    word-break: break-word;
   }
 
-  /* Action buttons in table */
-  .table-actions {
-    flex-wrap: wrap;
-    gap: 6px !important;
+  /* Action buttons stack vertically on mobile */
+  td .action-btns {
+    flex-direction: column;
+    gap: 4px !important;
+    align-items: stretch;
+  }
+
+  td .action-btns .btn-sm {
+    width: 100%;
+    justify-content: center;
   }
 
   .btn-sm {

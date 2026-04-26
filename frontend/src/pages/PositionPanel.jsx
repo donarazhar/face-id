@@ -156,7 +156,7 @@ function PositionPanel({ addToast }) {
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <div className="action-btns" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <button
                           className="btn btn-secondary btn-sm"
                           onClick={() => openForm(position)}

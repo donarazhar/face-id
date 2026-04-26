@@ -124,9 +124,9 @@ function PresenceTerminal({ addToast }) {
                 <tr>
                   <th>Waktu</th>
                   <th>Pegawai & NIP</th>
-                  <th>Cabang Tugas</th>
+                  <th className="hide-mobile">Cabang Tugas</th>
                   <th>Status</th>
-                  <th>Metode</th>
+                  <th className="hide-mobile">Metode</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,7 +159,7 @@ function PresenceTerminal({ addToast }) {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         {log.employee?.branch ? (
                           <span className="badge" style={{ background: 'var(--bg-elevated)', color: 'var(--primary)', fontSize: '0.8rem' }}>
                             🏢 {log.employee.branch.nama}
@@ -173,7 +173,7 @@ function PresenceTerminal({ addToast }) {
                           {log.status.toUpperCase()}
                         </span>
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>
                           {log.method}
                         </span>

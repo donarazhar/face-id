@@ -203,8 +203,8 @@ function BranchPanel({ addToast }) {
               <thead>
                 <tr>
                   <th>Nama Cabang</th>
-                  <th>Alamat</th>
-                  <th>Koordinat</th>
+                  <th className="hide-mobile">Alamat</th>
+                  <th className="hide-mobile">Koordinat</th>
                   <th>Radius</th>
                   <th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
@@ -218,17 +218,17 @@ function BranchPanel({ addToast }) {
                         {branch.nama}
                       </div>
                     </td>
-                    <td style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                    <td className="hide-mobile" style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                       {branch.alamat || '—'}
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+                    <td className="hide-mobile" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
                       {branch.latitude}, {branch.longitude}
                     </td>
                     <td>
                       <span className="badge badge-primary">{branch.radius}m</span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <div className="action-btns" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <a 
                           href={`https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`} 
                           target="_blank" 

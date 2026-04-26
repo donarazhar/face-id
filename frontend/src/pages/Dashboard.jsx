@@ -91,8 +91,8 @@ function Dashboard({ addToast }) {
                   <tr>
                     <th>Pegawai</th>
                     <th>Waktu</th>
-                    <th>Akurasi</th>
-                    <th>Jalur / App</th>
+                    <th className="hide-mobile">Akurasi</th>
+                    <th className="hide-mobile">Jalur / App</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -116,7 +116,7 @@ function Dashboard({ addToast }) {
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
                         {new Date(log.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div style={{ flex: 1, height: '6px', background: 'var(--bg-elevated)', borderRadius: '3px', overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${Math.round(parseFloat(log.confidence_score) * 100)}%`, background: 'var(--primary)', borderRadius: '3px' }}></div>
@@ -126,7 +126,7 @@ function Dashboard({ addToast }) {
                           </span>
                         </div>
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         <span className={`badge ${log.method?.startsWith('sso') ? 'badge-info' : 'badge-secondary'}`} style={{ fontSize: '0.7rem' }}>
                           {log.method === 'face_id' ? 'Internal Scanner' : log.method?.toUpperCase()}
                         </span>

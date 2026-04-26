@@ -437,7 +437,7 @@ function AdminPanel({ addToast }) {
               <thead>
                 <tr>
                   <th>Pegawai & NIP</th>
-                  <th>Jabatan & Cabang</th>
+                  <th className="hide-mobile">Jabatan & Cabang</th>
                   <th>Status Wajah</th>
                   <th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
@@ -462,7 +462,7 @@ function AdminPanel({ addToast }) {
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td className="hide-mobile">
                       <div>{emp.jabatan || '—'}</div>
                       {emp.branch && (
                         <span className="badge" style={{ background: 'var(--bg-elevated)', color: 'var(--primary)', marginTop: '4px', display: 'inline-block', fontSize: '0.75rem' }}>
@@ -478,7 +478,7 @@ function AdminPanel({ addToast }) {
                       )}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <div className="action-btns" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         {emp.has_face ? (
                           <button
                             className="btn btn-danger btn-sm"

@@ -119,18 +119,18 @@ function Reports({ addToast }) {
             <table>
               <thead>
                 <tr>
-                  <th>Log ID</th>
+                  <th className="hide-mobile">Log ID</th>
                   <th>Identitas Pengguna</th>
-                  <th>NIP</th>
+                  <th className="hide-mobile">NIP</th>
                   <th>Waktu Akses</th>
-                  <th>Keakuratan Wajah (AI)</th>
+                  <th className="hide-mobile">Keakuratan Wajah (AI)</th>
                   <th>Jalur Akses (Aplikasi)</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log, idx) => (
                   <tr key={log.id}>
-                    <td style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>#LOG-{log.id}</td>
+                    <td className="hide-mobile" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>#LOG-{log.id}</td>
                     <td>
                       <div className="employee-info">
                         <div className="employee-avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem' }}>
@@ -145,7 +145,7 @@ function Reports({ addToast }) {
                         </div>
                       </div>
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+                    <td className="hide-mobile" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
                       {log.employee?.nip}
                     </td>
                     <td style={{ fontSize: '0.85rem' }}>
@@ -160,7 +160,7 @@ function Reports({ addToast }) {
                         })}
                       </div>
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+                    <td className="hide-mobile" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
                       <span className={`badge badge-dot ${parseFloat(log.confidence_score) < 0.4 ? 'badge-success' : 'badge-warning'}`}>
                         {log.confidence_score ? `${Math.round(parseFloat(log.confidence_score) * 100)}% Match` : '—'}
                       </span>
