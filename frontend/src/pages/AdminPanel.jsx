@@ -133,17 +133,45 @@ function AdminPanel({ addToast }) {
     setCameraActive(true);
 
     try {
+      // Use 'ideal' constraints so mobile cameras can negotiate
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' }
+        video: {
+          width: { ideal: 640, min: 320 },
+          height: { ideal: 480, min: 240 },
+          facingMode: 'user'
+        },
+        audio: false
+      }).catch(() => {
+        // Fallback: if 'user' facingMode fails, try without it
+        return navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
       });
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', ''); // Critical for iOS
+        videoRef.current.setAttribute('webkit-playsinline', '');
         await videoRef.current.play();
-        startDetection();
+        // Wait for video to be ready before starting detection
+        videoRef.current.onloadedmetadata = () => {
+          startDetection();
+        };
+        // If metadata already loaded
+        if (videoRef.current.readyState >= 2) {
+          startDetection();
+        }
       }
     } catch (err) {
-      addToast('Tidak dapat mengakses kamera. Periksa izin browser.', 'error');
+      console.error('Camera error:', err);
+      const msg = err.name === 'NotAllowedError'
+        ? 'Izin kamera ditolak. Buka Settings > Site Settings > Camera.'
+        : err.name === 'NotFoundError'
+        ? 'Kamera tidak ditemukan di perangkat ini.'
+        : `Tidak dapat mengakses kamera: ${err.message}`;
+      addToast(msg, 'error');
       setCameraActive(false);
       setEnrollingId(null);
     }
@@ -167,15 +195,18 @@ function AdminPanel({ addToast }) {
   const startDetection = () => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
 
+    // Detect mobile device for adaptive throttle
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const throttleMs = isMobile ? 800 : 300; // Slower on mobile to prevent overload
+
     const detectLoop = async () => {
-      if (!videoRef.current || videoRef.current.paused) {
+      if (!videoRef.current || videoRef.current.paused || videoRef.current.readyState < 2) {
         animFrameRef.current = requestAnimationFrame(detectLoop);
         return;
       }
 
       const now = performance.now();
-      // Throttle: deteksi setiap ~300ms (enrollment butuh akurasi, bukan kecepatan)
-      if (now - lastDetectionTime.current < 300) {
+      if (now - lastDetectionTime.current < throttleMs) {
         animFrameRef.current = requestAnimationFrame(detectLoop);
         return;
       }
