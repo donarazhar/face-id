@@ -195,9 +195,9 @@ function AdminPanel({ addToast }) {
   const startDetection = () => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
 
-    // Detect mobile device for adaptive throttle
+    // Detect mobile device — use FAST model on mobile, PRECISE on desktop
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const throttleMs = isMobile ? 800 : 300; // Slower on mobile to prevent overload
+    const throttleMs = isMobile ? 600 : 300;
 
     const detectLoop = async () => {
       if (!videoRef.current || videoRef.current.paused || videoRef.current.readyState < 2) {
@@ -212,30 +212,48 @@ function AdminPanel({ addToast }) {
       }
       lastDetectionTime.current = now;
 
-      // Gunakan model PRESISI untuk enrollment (SSD MobileNet + Full Landmarks)
-      const result = await detectPrecise(videoRef.current);
-      setFaceDetected(result);
+      try {
+        // Mobile: use TinyFaceDetector (fast, ~277KB) — works on low-end devices
+        // Desktop: use SSD MobileNet V1 (precise, ~12MB) — better accuracy
+        const result = isMobile
+          ? await detectAndDescribe(videoRef.current)
+          : await detectPrecise(videoRef.current);
 
-      // Validasi kualitas wajah secara real-time
-      if (result) {
-        const quality = validateFaceQuality(result, videoRef.current);
-        setFaceQuality(quality);
-      } else {
-        setFaceQuality(null);
-      }
+        setFaceDetected(result);
 
-      if (canvasRef.current && videoRef.current) {
-        const displaySize = {
-          width: videoRef.current.videoWidth,
-          height: videoRef.current.videoHeight,
-        };
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
+        // Validasi kualitas wajah (threshold lebih rendah untuk mobile)
+        if (result) {
+          const quality = validateFaceQuality(result, videoRef.current);
+          // On mobile, relax confidence threshold since TinyFaceDetector scores lower
+          if (isMobile && quality.issues.length > 0) {
+            quality.issues = quality.issues.filter(
+              issue => !issue.includes('Kualitas deteksi rendah')
+            );
+            if (result.score >= 0.7) {
+              quality.valid = quality.issues.length === 0;
+            }
+          }
+          setFaceQuality(quality);
+        } else {
+          setFaceQuality(null);
+        }
 
-        const qualityOk = result && faceQuality?.valid;
-        const color = qualityOk ? '#00ff88' : (result ? '#fdcb6e' : '');
-        const label = qualityOk ? '✅ Siap Simpan' : (result ? '⚠️ Perbaiki Posisi' : '');
-        drawDetection(canvasRef.current, result, displaySize, label, color);
+        if (canvasRef.current && videoRef.current) {
+          const displaySize = {
+            width: videoRef.current.videoWidth,
+            height: videoRef.current.videoHeight,
+          };
+          canvasRef.current.width = videoRef.current.videoWidth;
+          canvasRef.current.height = videoRef.current.videoHeight;
+
+          const qualityOk = result && (isMobile ? result.score >= 0.7 : faceQuality?.valid);
+          const color = qualityOk ? '#00ff88' : (result ? '#fdcb6e' : '');
+          const label = qualityOk ? '✅ Siap Simpan' : (result ? '⚠️ Perbaiki Posisi' : '');
+          drawDetection(canvasRef.current, result, displaySize, label, color);
+        }
+      } catch (err) {
+        // Silently handle detection errors on mobile
+        console.warn('Detection error:', err);
       }
 
       animFrameRef.current = requestAnimationFrame(detectLoop);
@@ -248,8 +266,14 @@ function AdminPanel({ addToast }) {
     if (!faceDetected || !enrollingId) return;
 
     // Validasi kualitas wajah sebelum menyimpan
-    if (faceQuality && !faceQuality.valid) {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isMobile && faceQuality && !faceQuality.valid) {
       addToast(`Kualitas wajah belum memenuhi: ${faceQuality.issues[0]}`, 'error');
+      return;
+    }
+    // On mobile, only check minimum score
+    if (isMobile && faceDetected.score < 0.7) {
+      addToast('Wajah kurang jelas. Perbaiki pencahayaan.', 'error');
       return;
     }
 
@@ -333,7 +357,7 @@ function AdminPanel({ addToast }) {
               <button
                 className="btn btn-primary btn-lg"
                 onClick={handleEnrollFace}
-                disabled={!faceDetected || enrolling || (faceQuality && !faceQuality.valid)}
+                disabled={!faceDetected || enrolling}
               >
                 {enrolling ? (
                   <><span className="spinner"></span> Menyimpan...</>
