@@ -87,7 +87,7 @@ function BranchPanel({ addToast }) {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header page-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2>Cabang Al Azhar</h2>
           <p>Kelola lokasi absen untuk pegawai</p>

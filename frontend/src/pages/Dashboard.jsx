@@ -77,7 +77,7 @@ function Dashboard({ addToast }) {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
+      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
         {/* Recent Attendance */}
         <div className="card">
           <div className="card-header">

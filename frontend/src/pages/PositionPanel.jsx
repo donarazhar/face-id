@@ -83,7 +83,7 @@ function PositionPanel({ addToast }) {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header page-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2>Data Jabatan</h2>
           <p>Kelola daftar jabatan untuk pegawai</p>

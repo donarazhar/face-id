@@ -261,7 +261,7 @@ function AdminPanel({ addToast }) {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header page-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2>Kelola Pegawai</h2>
           <p>Tambah, edit, dan daftarkan wajah pegawai</p>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
@@ -9,11 +9,12 @@ import Documentation from './pages/Documentation';
 import BranchPanel from './pages/BranchPanel';
 import PositionPanel from './pages/PositionPanel';
 import Toast from './components/ui/Toast';
-import { HiOutlineTemplate, HiOutlineUsers, HiOutlineCamera, HiOutlineDocumentReport, HiOutlineLogout, HiOutlineDesktopComputer, HiOutlineBookOpen, HiOutlineOfficeBuilding } from 'react-icons/hi';
+import { HiOutlineTemplate, HiOutlineUsers, HiOutlineCamera, HiOutlineDocumentReport, HiOutlineLogout, HiOutlineDesktopComputer, HiOutlineBookOpen, HiOutlineOfficeBuilding, HiOutlineMenu, HiOutlineX } from 'react-icons/hi';
 
 function AppContent() {
   const location = useLocation();
   const [toast, setToast] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Menu states
   const [isDataMasterOpen, setIsDataMasterOpen] = useState(
@@ -22,6 +23,21 @@ function AppContent() {
   
   // State Autentikasi Admin Master
   const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('face_id_master_auth') === 'true');
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
 
   const addToast = (message, type = 'success') => {
     setToast({ message, type, id: Date.now() });
@@ -47,12 +63,13 @@ function AppContent() {
   const handleLogout = () => {
     localStorage.removeItem('face_id_master_auth');
     setIsAuthenticated(false);
+    setMobileMenuOpen(false);
   };
 
   // Tampilan Halaman Login Master
   if (!isAuthenticated) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--bg-main)', padding: 'var(--space-md)' }}>
         <div className="card" style={{ width: '100%', maxWidth: '400px', padding: 'var(--space-xl)', textAlign: 'center' }}>
           <div className="sidebar-brand" style={{ justifyContent: 'center', marginBottom: 'var(--space-xl)' }}>
             <div className="brand-icon">🪪</div>
@@ -86,8 +103,25 @@ function AppContent() {
   // Tampilan Dashboard Utama
   return (
     <div className="layout" style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Mobile Header */}
+      <div className="mobile-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+          <div className="brand-icon">🪪</div>
+          <h1>Face-ID</h1>
+        </div>
+        <button className="hamburger-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          {mobileMenuOpen ? <HiOutlineX /> : <HiOutlineMenu />}
+        </button>
+      </div>
+
+      {/* Mobile Overlay */}
+      <div 
+        className={`sidebar-overlay ${mobileMenuOpen ? 'active' : ''}`} 
+        onClick={() => setMobileMenuOpen(false)} 
+      />
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-brand">
           <div className="brand-icon">🪪</div>
           <div>

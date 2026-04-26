@@ -83,7 +83,7 @@ function Reports({ addToast }) {
       </div>
 
       {/* Report Summary */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 'var(--space-lg)' }}>
+      <div className="stats-grid report-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 'var(--space-lg)' }}>
         <div className="stat-card" style={{ '--stat-color': '#00d4aa' }}>
           <div className="stat-value">{logs.length}</div>
           <div className="stat-label">Total Akses / Login</div>
